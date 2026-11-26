@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    {{- include "getting-started-todo-app-openai-agent.labels" . | nindent 4 }}
+    app.kubernetes.io/name: getting-started-todo-app-openai-agent
+    app.kubernetes.io/component: backend
+    katenary.v3/component: backend
+  name: '{{ include "getting-started-todo-app-openai-agent.fullname" . }}-backend'
+spec:
+  replicas: {{ .Values.backend.replicas | default 2 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      {{- include "getting-started-todo-app-openai-agent.selectorLabels" . | nindent 6 }}
+      katenary.v3/component: backend
+  template:
+    metadata:
+      labels:
+        {{- include "getting-started-todo-app-openai-agent.selectorLabels" . | nindent 8 }}
+        app: todo-backend
+        app.kubernetes.io/name: getting-started-todo-app-openai-agent
+        app.kubernetes.io/component: backend
+        katenary.v3/component: backend
+    spec:
+      initContainers:
+      - name: wait-for-postgres
+        image: busybox:1.36
+        imagePullPolicy: IfNotPresent
+        command:
+        - sh
+        - -c
+        - |-
+          echo "Waiting for PostgreSQL service at {{ include "getting-started-todo-app-openai-agent.fullname" . }}-postgres:5432..."
+          until nc -z -v -w3 {{ include "getting-started-todo-app-openai-agent.fullname" . }}-postgres 5432; do
+            echo "PostgreSQL is not ready yet, sleeping 2s..."
+            sleep 2
+          done
+          echo "PostgreSQL is available!"
+      containers:
+      - name: backend
+        image: '{{ tpl .Values.backend.repository.image $ }}:{{ tpl .Values.backend.repository.tag $ | default "latest" }}'
+        imagePullPolicy: {{ .Values.backend.imagePullPolicy }}
+        ports:
+        - containerPort: 3000
+          name: http
+        envFrom:
+        - configMapRef:
+            name: '{{ include "getting-started-todo-app-openai-agent.fullname" . }}-backend'
+        env:
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: todo-ai-secret
+              key: OPENAI_API_KEY
+              optional: true
+        resources:
+          {{- if .Values.backend.resources }}
+          {{- .Values.backend.resources | toYaml | nindent 10 }}
+          {{- else }}
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "300m"
+            memory: "512Mi"
+          {{- end }}
+        readinessProbe:
+          httpGet:
+            path: /api/items
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /api/items
+            port: 3000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+      {{- if .Values.pullSecrets }}
+      imagePullSecrets:
+      {{- .Values.pullSecrets | toYaml | nindent 6 }}
+      {{- end }}
+      {{- if .Values.backend.nodeSelector }}
+      nodeSelector:
+        {{- .Values.backend.nodeSelector | toYaml | nindent 8 }}
+      {{- end }}
+      {{- if ne (default "" .Values.backend.serviceAccount) "" }}
+      serviceAccountName: {{ .Values.backend.serviceAccount | quote }}
+      {{- end }}

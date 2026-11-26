@@ -60,17 +60,17 @@ services:
   # [Docker Compose 이미지 명명 규칙 (Image Naming Convention)]:
   # 별도의 'image:' 속성을 지정하지 않고 'build:'만 선언하면, Docker Compose의
   # 기본 명명 규칙 [<프로젝트명>-<서비스명>:latest]에 따라
-  # 현재 프로젝트 디렉터리명(getting-started-todo-app-fastapi-claude)과 서비스명(backend)이 결합되어
-  # 자동으로 'getting-started-todo-app-fastapi-claude-backend:latest'라는 이름으로 빌드 및 태깅됩니다.
+  # 현재 프로젝트 디렉터리명(getting-started-todo-app-openai-agent)과 서비스명(backend)이 결합되어
+  # 자동으로 'getting-started-todo-app-openai-agent-backend:latest'라는 이름으로 빌드 및 태깅됩니다.
   #
-  # 만약 Kubernetes(KIND) 등에서 사용할 특정 이미지 이름(예: todo-lab-ai:prod)으로
+  # 만약 Kubernetes(KIND) 등에서 사용할 특정 이미지 이름(예: todo-openai-agent:prod)으로
   # 빌드하고자 한다면 아래 주석처럼 'image:' 속성을 명시하면 됩니다:
-  #   image: todo-lab-ai:prod
+  #   image: todo-openai-agent:prod
   ###################################################
   backend:
     # <Your registry> 를 본인의 GitHub 계정/조직명으로 바꾸세요.
-    #image: ghcr.io/<Your registry>/todo-lab-ai:prod
-    image: ghcr.io/cstpeace0191/todo-lab-ai:prod
+    #image: ghcr.io/<Your registry>/todo-openai-agent:prod
+    image: ghcr.io/cstpeace0191/todo-openai-agent:prod
     ports:
       - 3000:3000
     expose:
@@ -80,8 +80,12 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: todos
-      # Claude API 키 (호스트의 환경변수에서 전달, 없으면 AI 분류만 꺼짐)
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # OpenAI API 키 (Agents SDK, 호스트의 환경변수에서 전달, 없으면 AI 기능만 꺼짐)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # (선택) 사용할 모델. 비우면 기본 모델(gpt-5.6-luna)
+      AI_MODEL: ${AI_MODEL:-}
+      # (선택) 1 로 두면 OpenAI 대시보드(Traces)로의 실행 기록 전송을 끈다
+      OPENAI_AGENTS_DISABLE_TRACING: ${OPENAI_AGENTS_DISABLE_TRACING:-0}
     depends_on:
       postgres:
         condition: service_healthy

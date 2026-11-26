@@ -15,7 +15,7 @@ export function TodoListCard() {
     const [aiEnabled, setAiEnabled] = useState(false);
     const selection = useSelection(items ?? NO_ITEMS);
 
-    // 서버에 ANTHROPIC_API_KEY 가 설정되어 있는지 확인 (AI 분류 버튼 표시 여부)
+    // 서버에 OpenAI API 키(OPENAI_API_KEY)가 설정되어 있는지 확인 (AI 분류 버튼 표시 여부)
     useEffect(() => {
         fetch('/api/ai/status')
             .then((r) => (r.ok ? r.json() : { enabled: false }))

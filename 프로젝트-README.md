@@ -1,18 +1,20 @@
-# Getting Started Todo App (FastAPI + React + Claude AI)
+# Getting Started Todo App (FastAPI + React + OpenAI Agents SDK)
 
 이 프로젝트는 Docker 공식 튜토리얼 예제(`getting-started-todo-app`)를 기반으로 현대적인 **클라우드 네이티브 풀스택 AI 애플리케이션**으로 재설계한 프로젝트입니다. 
-Compose 파일, 최적화된 다단계(Multi-stage) Dockerfile, CI/CD, Kubernetes(KIND 및 GKE), Helm 차트 오케스트레이션 및 Anthropic Claude 생성형 AI 연동에 이르기까지 프로덕션 환경의 모범 사례(Best Practices)를 완벽하게 구현하였습니다.
+Compose 파일, 최적화된 다단계(Multi-stage) Dockerfile, CI/CD, Kubernetes(KIND 및 GKE), Helm 차트 오케스트레이션 및 OpenAI Agents SDK 기반 AI 에이전트 연동에 이르기까지 프로덕션 환경의 모범 사례(Best Practices)를 완벽하게 구현하였습니다.
 
 ---
 
 ## 🌟 프로젝트 주요 기능 (Feature Highlights)
 
-### 1. 🤖 생성형 AI (Anthropic Claude) 기반 스마트 자동 분류
-- **자연어 심층 파싱**: 사용자가 일상 언어로 할 일을 입력(예: *"내일 오후 3시까지 클라우드컴퓨팅 과제 제출하기"*)하면, Claude 모델(`claude-opus-5-5` 등)이 문맥을 이해하여 메타데이터를 자동 추출합니다.
+### 1. 🤖 생성형 AI (OpenAI Agents SDK) 기반 스마트 자동 분류 + 일정 브리핑 에이전트
+- **자연어 심층 파싱**: 사용자가 일상 언어로 할 일을 입력(예: *"내일 오후 3시까지 클라우드컴퓨팅 과제 제출하기"*)하면, OpenAI 모델(기본 `gpt-5.6-luna`)이 문맥을 이해하여 메타데이터를 자동 추출합니다.
   - **카테고리(Category)**: `study` (공부), `work` (업무), `personal` (개인) 자동 판별
   - **우선순위(Priority)**: `high` (높음), `medium` (보통), `low` (낮음) 자동 배정
   - **마감일시(Due Date & Time)**: `YYYY-MM-DD HH:MM` 정형 일시 데이터로 자동 변환
-- **무중단 회복탄력성(Graceful Fallback)**: Claude API 키가 없거나 외부 통신 장애가 발생해도 기본 Todo CRUD 기능은 항상 100% 정상 작동합니다.
+- **OpenAI Agents SDK**: 모든 AI 기능이 `openai-agents` 의 `Agent` + `Runner` 로 동작합니다 (`AI_MODEL` 로 모델 변경 가능, `output_type` 으로 구조화 출력).
+- **🆕 AI 일정 브리핑 에이전트**: 에이전트가 읽기 전용 함수 도구(`function_tool`: `get_schedule`, `search_items`, `get_category_counts`)로 할 일 DB 를 직접 조회한 뒤, 오늘 먼저 할 일·주의사항·조언을 브리핑합니다 (`POST /api/ai/briefing`, 날짜별 검색 화면의 **AI 브리핑** 버튼).
+- **무중단 회복탄력성(Graceful Fallback)**: AI 키가 없거나 외부 통신 장애가 발생해도 기본 Todo CRUD 기능은 항상 100% 정상 작동합니다.
 - **AI 관리 기능**: 실시간 AI 활성화 여부 확인(`/api/ai/status`) 및 기존 등록 항목에 대한 개별 재분류(`/api/items/{id}/classify`) API를 지원합니다.
 
 ### 2. 💻 현대적 프론트엔드 UX (React 19 + TypeScript + Vite 6)
@@ -35,9 +37,9 @@ Compose 파일, 최적화된 다단계(Multi-stage) Dockerfile, CI/CD, Kubernete
   - **KIND 로컬 클러스터**: 워커 2대 구성, NodePort(30080) 포트포워딩, `cloud-provider-kind` 로드밸런서 지원.
   - **Google Cloud GKE**: 정식 GCP VPC 및 노드 풀 배포, L4 `LoadBalancer` (외부 IP `34.47.121.94`) 및 L7 `Ingress` (`136.82.137.12`, 도메인 `www.ssu-cloud-computing-gke.com`) 연동.
 - **Helm 3 차트 패키지 (3종)**:
-  - `charts/getting-started-todo-app-fastapi-claude.local_kind`: KIND 로컬 개발용
-  - `charts/getting-started-todo-app-fastapi-claude.github_kind`: GitHub Packages (GHCR) 연동용
-  - `charts/getting-started-todo-app-fastapi-claude.gcp_gke`: GCP Artifact Registry 연동용
+  - `charts/getting-started-todo-app-openai-agent.local_kind`: KIND 로컬 개발용
+  - `charts/getting-started-todo-app-openai-agent.github_kind`: GitHub Packages (GHCR) 연동용
+  - `charts/getting-started-todo-app-openai-agent.gcp_gke`: GCP Artifact Registry 연동용
 - **자동화 스크립트 체계 (`scripts/`)**: Katenary 기반의 Helm 차트 생성(`generate-chart.py`), 서비스 타입 패치(`patch-service-type.py`), 배포 매니페스트 동기화(`sync_charts.py`) 파이프라인 완비.
 - **멀티 레지스트리 지원**: Local Docker 데몬, GitHub Container Registry (GHCR), GCP Artifact Registry 대응.
 
@@ -61,7 +63,7 @@ flowchart LR
         Vol[("todo-postgres-data<br/>볼륨")]
     end
 
-    Claude["☁️ Claude API<br/>(Anthropic)"]
+    OpenAI["☁️ OpenAI API<br/>(Agents SDK 경유)"]
 
     Browser -->|"http://localhost"| Proxy
     Browser -->|"http://db.localhost"| Proxy
@@ -71,7 +73,7 @@ flowchart LR
     Backend -->|"asyncpg"| PG
     Adminer --> PG
     PG --- Vol
-    Backend -.->|"HTTPS (분류 요청)"| Claude
+    Backend -.->|"Agents SDK (분류·브리핑)"| OpenAI
 ```
 
 ### 2. 운영(배포) 환경 (`compose-prod-build.yml`, `compose-prod-GitHub.yml`, Kubernetes)
@@ -94,13 +96,13 @@ flowchart LR
         Vol[("todo-postgres-data")]
     end
 
-    Claude["☁️ Claude API"]
+    OpenAI["☁️ OpenAI API<br/>(Agents SDK 경유)"]
 
     Browser --> Proxy
     Proxy -->|"PathPrefix(/)"| BE
     API -->|"asyncpg"| PG
     PG --- Vol
-    API -.->|"분류 요청"| Claude
+    API -.->|"분류·브리핑 요청"| OpenAI
 ```
 
 > Kubernetes(kind) 배포(`kind-deployment-Local.yaml`)에서는 같은 구성이
@@ -112,7 +114,7 @@ flowchart LR
 
 ### 요청 처리 흐름 (할 일 추가)
 
-사용자가 할 일을 입력하면 백엔드가 Claude 로 자동 분류한 뒤 DB 에 저장합니다.
+사용자가 할 일을 입력하면 백엔드가 OpenAI Agents SDK 에이전트로 자동 분류한 뒤 DB 에 저장합니다.
 **AI 분류가 실패해도 저장(CRUD)은 항상 정상 동작**하도록 설계되어 있습니다.
 
 ```mermaid
@@ -121,13 +123,13 @@ sequenceDiagram
     participant C as React (브라우저)
     participant B as FastAPI (routes/items.py)
     participant A as ai/classifier.py
-    participant L as Claude API
+    participant L as OpenAI (Agents SDK)
     participant D as DB (PostgreSQL / SQLite)
 
     U->>C: "내일 오후 3시 알고리즘 과제 제출" 입력
     C->>B: POST /api/items {name, today}
     B->>A: classify_item(name, today)
-    A->>L: Structured Outputs 호출 (effort: low)
+    A->>L: query() 구조화 출력, 내장 도구 없음 (effort: low)
     L-->>A: {category, priority, due_date, due_time}
     A-->>B: 검증된 Classification (실패 시 None)
     B->>D: INSERT INTO todo_items (uuid 발급)
@@ -138,7 +140,7 @@ sequenceDiagram
 
 - 사용자가 날짜를 **직접 지정**하면 AI 가 추출한 날짜보다 **우선**합니다.
 - AI 가 만든 날짜/시간은 `valid_date`, `valid_time` 으로 다시 검증하며, 날짜가 없으면 시간도 버립니다.
-- API 키가 없거나 `AI_CLASSIFY_ENABLED=false` 이면 분류를 건너뛰고 일반 할 일 앱으로 동작합니다.
+- API 키가 없거나 `AI_ENABLED=false` (구 이름 `AI_CLASSIFY_ENABLED` 도 인정) 이면 분류를 건너뛰고 일반 할 일 앱으로 동작합니다.
 
 ### 백엔드 계층 구조
 
@@ -147,7 +149,7 @@ sequenceDiagram
 | 진입점 | `backend/src/main.py` | FastAPI 앱 생성, CORS, 라우터 등록, 시작/종료 시 DB 초기화·정리, `static/` 이 있으면 React 앱 서빙 |
 | 라우트 | `backend/src/routes/` | `items.py`(할 일 CRUD·검색·일정·일괄삭제·재분류), `greeting.py`(다국어 인사말) |
 | 모델 | `backend/src/models.py` | Pydantic 요청/응답 모델과 날짜·시간 검증 |
-| AI | `backend/src/ai/classifier.py` | Claude 호출, 프롬프트, 오류 처리(예외를 밖으로 던지지 않음) |
+| AI | `backend/src/ai/` | `agent.py`(Agents SDK 공통 실행·모델 선택·오류 처리, 예외를 밖으로 던지지 않음), `classifier.py`(자동 분류), `planner.py`(함수 도구를 쓰는 일정 브리핑 에이전트) |
 | 영속성 | `backend/src/persistence/` | `postgres.py`(asyncpg 커넥션 풀), `sqlite.py`(aiosqlite). `__init__.py` 가 환경변수로 구현체 선택 |
 
 **DB 선택 규칙**: `POSTGRES_HOST`(또는 `POSTGRES_HOST_FILE`) 환경변수가 있으면 PostgreSQL,
@@ -176,9 +178,10 @@ sequenceDiagram
 | PUT | `/api/items/{id}` | 부분 수정 (이름, 완료, 분류, 우선순위, 등록, 일정) |
 | DELETE | `/api/items/{id}` | 단건 삭제 |
 | POST | `/api/items/bulk-delete` | 여러 항목 일괄 삭제 (최대 1000개) |
-| POST | `/api/items/{id}/classify` | 기존 항목을 Claude 로 재분류 |
+| POST | `/api/items/{id}/classify` | 기존 항목을 AI 로 재분류 |
 | GET | `/api/categories` | 분류별 항목 개수 |
 | GET | `/api/schedule?date=` 또는 `?start=&end=` | 오늘 일정(+기한 지난 미완료) 또는 기간 일정 |
+| POST | `/api/ai/briefing` | AI 일정 브리핑 (에이전트가 DB 를 조회해 `focus`/`warnings`/`tips` 반환. AI 꺼짐 503, 실패 502) |
 | GET | `/api/ai/status` | AI 분류 사용 가능 여부 (버튼 표시용) |
 | GET | `/api/greeting?lang=ko\|en` | 인사말 |
 
@@ -246,8 +249,8 @@ erDiagram
 프로젝트를 실행하려면 Docker Desktop 을 설치한 뒤 다음 명령을 실행하세요.
 
 ```
-git clone https://github.com/cstpeace0191/getting-started-todo-app-fastapi-claude
-cd getting-started-todo-app-fastapi-claude
+git clone https://github.com/cstpeace0191/getting-started-todo-app-openAI-agent
+cd getting-started-todo-app-openAI-agent
 docker compose up --watch
 ```
 
@@ -300,17 +303,19 @@ DB 확인을 돕기 위해 개발 스택에는 Adminer 도 포함되어 있으�
 (대부분의 브라우저는 `*.localhost` 를 자동으로 해석하므로 hosts 파일을 수정할 필요가 없습니다).
 Adminer 접속 정보: 시스템 `PostgreSQL`, 서버 `postgres`, 사용자 `postgres`, 비밀번호 `secret`, 데이터베이스 `todos`.
 
-### AI 분류 설정 (선택)
+### AI 기능 설정 (선택: 자동 분류·일정 브리핑)
 
-1. [Anthropic Console](https://platform.claude.com/settings/keys) 에서 API 키를 발급받습니다.
-2. `.env.example` 을 `.env` 로 복사하고 `ANTHROPIC_API_KEY` 값을 채웁니다.
+1. [OpenAI Platform](https://platform.openai.com/api-keys) 에서 API 키를 발급받습니다.
+2. `.env.example` 을 `.env` 로 복사하고 `OPENAI_API_KEY` 값을 채웁니다.
 3. 컴포즈를 실행하면 백엔드 컨테이너로 키가 전달됩니다.
 
 | 환경변수 | 설명 |
 |----------|------|
-| `ANTHROPIC_API_KEY` | Claude API 키 (없으면 AI 분류 비활성) |
-| `ANTHROPIC_API_KEY_FILE` | 키가 들어 있는 파일 경로 (Docker/K8s Secret 마운트용) |
-| `AI_CLASSIFY_ENABLED` | `false` 로 두면 키가 있어도 분류를 끔 |
+| `OPENAI_API_KEY` | OpenAI API 키 (없으면 AI 기능 비활성) |
+| `OPENAI_API_KEY_FILE` | 키가 들어 있는 파일 경로 (Docker/K8s Secret 마운트용) |
+| `AI_ENABLED` | `false` 로 두면 키가 있어도 AI 를 끔 (구 이름 `AI_CLASSIFY_ENABLED` 도 인정) |
+| `AI_MODEL` | 사용할 모델 (기본 `gpt-5.6-luna`) |
+| `OPENAI_AGENTS_DISABLE_TRACING` | (선택) `1` 이면 OpenAI 대시보드(Traces)로의 실행 기록 전송을 끔 |
 | `POSTGRES_HOST` / `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | PostgreSQL 접속 정보 (`POSTGRES_HOST` 가 있으면 PostgreSQL 사용) |
 | `SQLITE_DB_LOCATION` | SQLite 사용 시 DB 파일 경로 |
 
@@ -337,7 +342,7 @@ PowerShell:
 
 ```
 $env:SQLITE_DB_LOCATION = "$PWD\todo.db"       # 필수: 기본값(/etc/todos/todo.db)은 Windows 에 없는 경로
-$env:ANTHROPIC_API_KEY = "sk-ant-xxxxxxxx"     # 선택: 없으면 AI 분류만 꺼짐
+$env:OPENAI_API_KEY = "sk-xxxxxxxx"       # 선택: 없으면 AI 기능만 꺼짐
 uv run --no-sync python main.py                # pip 사용 시: python main.py
 ```
 
@@ -345,7 +350,7 @@ macOS / Linux / Git Bash:
 
 ```
 export SQLITE_DB_LOCATION="$PWD/todo.db"
-export ANTHROPIC_API_KEY=sk-ant-xxxxxxxx
+export OPENAI_API_KEY=sk-xxxxxxxx
 uv run --no-sync python main.py
 ```
 
@@ -441,32 +446,32 @@ SQLite 로 바꾸려면 backend 의 `POSTGRES_*` 환경변수와 `depends_on: po
 docker compose -f compose-prod-build.yml up --build
 ```
 
-`compose-prod-build.yml` 은 운영 이미지를 **`todo-lab-ai:prod`** 라는 이름으로 빌드합니다.
+`compose-prod-build.yml` 은 운영 이미지를 **`todo-openai-agent:prod`** 라는 이름으로 빌드합니다.
 이 이미지를 아래 절차로 레지스트리에 올리면, 다른 컴퓨터·Kubernetes(GKE 등)에서 내려받아 쓸 수 있습니다.
 
 | 대상 레지스트리 | 이미지 전체 이름 | 사용하는 YAML |
 |-----------------|------------------|---------------|
-| 로컬 | `todo-lab-ai:prod` | `compose-prod-build.yml`, `kind-deployment-Local.yaml` |
-| GitHub (ghcr.io) | `ghcr.io/<Your registry>/todo-lab-ai:prod` (예: `ghcr.io/cstpeace0191/todo-lab-ai:prod`) | `compose-prod-GitHub.yml`, `GKE-deployment-GitHub.yaml` |
-| GCP Artifact Registry | `asia-northeast3-docker.pkg.dev/<Your GCP Project ID>/<Your name-repo>/todo-lab-ai:prod` (예: `asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-lab-ai:prod`) | `compose-prod-GCPRegistry.yml`, `GKE-deployment-GCP.yaml` |
+| 로컬 | `todo-openai-agent:prod` | `compose-prod-build.yml`, `kind-deployment-Local.yaml` |
+| GitHub (ghcr.io) | `ghcr.io/<Your registry>/todo-openai-agent:prod` (예: `ghcr.io/cstpeace0191/todo-openai-agent:prod`) | `compose-prod-GitHub.yml`, `GKE-deployment-GitHub.yaml` |
+| GCP Artifact Registry | `asia-northeast3-docker.pkg.dev/<Your GCP Project ID>/<Your name-repo>/todo-openai-agent:prod` (예: `asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-openai-agent:prod`) | `compose-prod-GCPRegistry.yml`, `GKE-deployment-GCP.yaml` |
 
 ### GitHub 레지스트리(ghcr.io)에 이미지 push 하기
 
 `<Your registry>` 는 본인의 GitHub 사용자명(또는 조직명)입니다. 이 문서에서는 예시로 `cstpeace0191` 을 사용합니다.
 레지스트리 주소와 사용자명은 **반드시 소문자**여야 합니다.
 
-**1) 이미지 빌드** — 이미 `docker compose -f compose-prod-build.yml build` 를 했다면 `todo-lab-ai:prod` 가 만들어져 있습니다. 직접 빌드하려면:
+**1) 이미지 빌드** — 이미 `docker compose -f compose-prod-build.yml build` 를 했다면 `todo-openai-agent:prod` 가 만들어져 있습니다. 직접 빌드하려면:
 
 ```
-docker build --target final -t todo-lab-ai:prod .
+docker build --target final -t todo-openai-agent:prod .
 ```
 
 **2) 태깅** — 로컬 이미지에 레지스트리 경로가 포함된 이름을 하나 더 붙입니다. (이미지가 복사되는 것이 아니라 이름만 추가됩니다.)
 
 ```
-docker tag todo-lab-ai:prod ghcr.io/<Your registry>/todo-lab-ai:prod
+docker tag todo-openai-agent:prod ghcr.io/<Your registry>/todo-openai-agent:prod
 # 예시
-docker tag todo-lab-ai:prod ghcr.io/cstpeace0191/todo-lab-ai:prod
+docker tag todo-openai-agent:prod ghcr.io/cstpeace0191/todo-openai-agent:prod
 ```
 
 **3) Docker 에서 GitHub 인증** — GitHub 비밀번호는 사용할 수 없고 **Personal Access Token(classic)** 이 필요합니다.
@@ -497,22 +502,22 @@ echo $GHCR_TOKEN | docker login ghcr.io -u cstpeace0191 --password-stdin
 **4) GitHub Repository(Packages) 에 push**
 
 ```
-docker push ghcr.io/<Your registry>/todo-lab-ai:prod
+docker push ghcr.io/<Your registry>/todo-openai-agent:prod
 # 예시
-docker push ghcr.io/cstpeace0191/todo-lab-ai:prod
+docker push ghcr.io/cstpeace0191/todo-openai-agent:prod
 ```
 
-push 가 끝나면 GitHub 프로필의 **Packages** 탭에서 `todo-lab-ai` 를 확인할 수 있습니다.
+push 가 끝나면 GitHub 프로필의 **Packages** 탭에서 `getting-started-todo-app-openai-agent` 를 확인할 수 있습니다.
 
 #### 4-1) GitHub 패키지를 Public으로 전환하기 (권장)
 GitHub Packages(ghcr.io)에 처음 push된 이미지는 기본값이 **Private(비공개)** 입니다. Private 상태에서는 외부 클러스터(GKE, kind 등)에서 이미지를 가져올 때 인증 오류(`ErrImagePull`, `ImagePullBackOff`)가 발생하므로, 누구나 받을 수 있도록 **Public**으로 전환하는 것이 가장 편리합니다:
 
 1. **GitHub 웹사이트 접속** 후 우측 상단 프로필 아이콘 → **Your profile** 클릭
-2. 상단 탭 중 **Packages** 클릭 → 방금 push한 **`todo-lab-ai`** 패키지 클릭
+2. 상단 탭 중 **Packages** 클릭 → 방금 push한 **`getting-started-todo-app-openai-agent`** 패키지 클릭
 3. 우측 하단의 **Package settings** 클릭
 4. 페이지 맨 아래 **Danger Zone** 섹션으로 스크롤 이동
 5. **Change package visibility** (또는 Change visibility) 버튼 클릭
-6. **Public** 을 선택하고 안내 문구에 따라 패키지 이름(`todo-lab-ai`)을 입력한 뒤 확인 버튼 클릭
+6. **Public** 을 선택하고 안내 문구에 따라 패키지 이름(`getting-started-todo-app-openai-agent`)을 입력한 뒤 확인 버튼 클릭
 7. ✅ 이제 GKE나 kind 등 어떤 환경에서도 별도의 인증 Secret(`imagePullSecrets`) 없이 즉시 이미지를 pull할 수 있습니다.
 
 > 🔒 **Private 상태를 유지해야 하는 경우**:
@@ -537,9 +542,9 @@ docker compose -f compose-prod-GitHub.yml up -d
 최종 이미지 이름:
 
 ```
-asia-northeast3-docker.pkg.dev/<Your GCP Project ID>/<Your name-repo>/todo-lab-ai:prod
+asia-northeast3-docker.pkg.dev/<Your GCP Project ID>/<Your name-repo>/todo-openai-agent:prod
 # 예시
-asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-lab-ai:prod
+asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-openai-agent:prod
 ```
 
 **1) Windows 에 gcloud CLI 설치**
@@ -582,9 +587,9 @@ gcloud services enable artifactregistry.googleapis.com
 Docker 이미지를 담을 저장소가 없다면 생성합니다.
 
 ```
-gcloud artifacts repositories create <Your name-repo> --repository-format=docker --location=asia-northeast3 --description="todo-lab-ai images"
+gcloud artifacts repositories create <Your name-repo> --repository-format=docker --location=asia-northeast3 --description="getting-started-todo-app-openai-agent images"
 # 예시
-gcloud artifacts repositories create suntaechung-repo --repository-format=docker --location=asia-northeast3 --description="todo-lab-ai images"
+gcloud artifacts repositories create suntaechung-repo --repository-format=docker --location=asia-northeast3 --description="getting-started-todo-app-openai-agent images"
 ```
 
 확인:
@@ -608,17 +613,17 @@ gcloud auth configure-docker asia-northeast3-docker.pkg.dev
 **5) 태깅**
 
 ```
-docker tag todo-lab-ai:prod asia-northeast3-docker.pkg.dev/<Your GCP Project ID>/<Your name-repo>/todo-lab-ai:prod
+docker tag todo-openai-agent:prod asia-northeast3-docker.pkg.dev/<Your GCP Project ID>/<Your name-repo>/todo-openai-agent:prod
 # 예시
-docker tag todo-lab-ai:prod asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-lab-ai:prod
+docker tag todo-openai-agent:prod asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-openai-agent:prod
 ```
 
 **6) GCP Artifact Registry 에 push**
 
 ```
-docker push asia-northeast3-docker.pkg.dev/<Your GCP Project ID>/<Your name-repo>/todo-lab-ai:prod
+docker push asia-northeast3-docker.pkg.dev/<Your GCP Project ID>/<Your name-repo>/todo-openai-agent:prod
 # 예시
-docker push asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-lab-ai:prod
+docker push asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-openai-agent:prod
 ```
 
 push 확인:
@@ -661,16 +666,16 @@ docker compose down
 
 ## Kubernetes 배포
 
-운영 이미지(`todo-lab-ai:prod`)를 Kubernetes 에 배포하는 두 가지 방법입니다.
+운영 이미지(`todo-openai-agent:prod`)를 Kubernetes 에 배포하는 두 가지 방법입니다.
 Deployment 매니페스트는 모두 **같은 구조**(Secret + ConfigMap + PVC + `postgres` Pod/Service + `todo-backend` Deployment)이며
 이미지 위치와 스토리지 클래스만 다릅니다.
 
 | 매니페스트 | 대상 | 이미지 | PVC 스토리지 클래스 |
 |------------|------|--------|---------------------|
-| `kind-deployment-Local.yaml` | kind | `todo-lab-ai:prod` (로컬 빌드, `kind load` 로 주입) | `standard` (1Gi) |
-| `kind-deployment-GitHub.yaml` | kind | `ghcr.io/<Your registry>/todo-lab-ai:prod` | `standard` (1Gi) |
-| `GKE-deployment-GitHub.yaml` | GKE | `ghcr.io/<Your registry>/todo-lab-ai:prod` | `standard-rwo` (10Gi) |
-| `GKE-deployment-GCP.yaml` | GKE | `asia-northeast3-docker.pkg.dev/<Your GCP Project ID>/<Your name-repo>/todo-lab-ai:prod` | `standard-rwo` (10Gi) |
+| `kind-deployment-Local.yaml` | kind | `todo-openai-agent:prod` (로컬 빌드, `kind load` 로 주입) | `standard` (1Gi) |
+| `kind-deployment-GitHub.yaml` | kind | `ghcr.io/<Your registry>/todo-openai-agent:prod` | `standard` (1Gi) |
+| `GKE-deployment-GitHub.yaml` | GKE | `ghcr.io/<Your registry>/todo-openai-agent:prod` | `standard-rwo` (10Gi) |
+| `GKE-deployment-GCP.yaml` | GKE | `asia-northeast3-docker.pkg.dev/<Your GCP Project ID>/<Your name-repo>/todo-openai-agent:prod` | `standard-rwo` (10Gi) |
 
 공통 사항:
 
@@ -679,11 +684,11 @@ Deployment 매니페스트는 모두 **같은 구조**(Secret + ConfigMap + PVC 
 - `todo-backend`(replicas 2)의 initContainer 가 `postgres:5432` 가 열릴 때까지 기다린 뒤 앱이 시작됩니다.
   **두 레플리카가 같은 PostgreSQL 을 공유**하므로 어느 Pod 로 접속해도 같은 데이터가 보입니다.
 - 헬스체크는 `GET /api/items` 입니다.
-- (선택) AI 분류를 쓰려면 키 Secret 을 만드세요. 없어도 앱은 일반 Todo 앱으로 정상 동작합니다.
+- (선택) AI 기능(분류·브리핑)을 쓰려면 키 Secret 을 만드세요. 없어도 앱은 일반 Todo 앱으로 정상 동작합니다.
   Secret 을 Deployment 적용 후에 만들었다면 `kubectl rollout restart deployment/todo-backend` 로 Pod 를 다시 시작합니다.
 
   ```
-  kubectl create secret generic todo-ai-secret --from-literal=ANTHROPIC_API_KEY=sk-ant-xxxxxxxx
+  kubectl create secret generic todo-ai-secret --from-literal=OPENAI_API_KEY=sk-xxxxxxxx
   ```
 
 - `postgres` 는 단일 Pod(레플리카 없음)입니다. 실습용 구성이며, 운영에서는 StatefulSet 또는 관리형 DB(Cloud SQL 등)를 권장합니다.
@@ -748,12 +753,12 @@ kubectl get nodes                                # 3개 노드(control-plane 1 +
 
 **4) 이미지를 kind 노드에 적재 (`kind load docker-image`)**
 
-kind 노드는 호스트의 Docker 이미지 저장소와 **분리**되어 있어, 로컬에서 빌드한 `todo-lab-ai:prod` 를 노드 안으로 직접 넣어야 합니다.
+kind 노드는 호스트의 Docker 이미지 저장소와 **분리**되어 있어, 로컬에서 빌드한 `todo-openai-agent:prod` 를 노드 안으로 직접 넣어야 합니다.
 (`kind-deployment-Local.yaml` 은 `imagePullPolicy: IfNotPresent` 로 이 이미지를 사용합니다.)
 
 ```
-docker build --target final -t todo-lab-ai:prod .
-kind load docker-image todo-lab-ai:prod --name my-k8s
+docker build --target final -t todo-openai-agent:prod .
+kind load docker-image todo-openai-agent:prod --name my-k8s
 ```
 
 > 이미지를 다시 빌드한 뒤에는 `kind load` 를 다시 실행하고 `kubectl rollout restart deployment/todo-backend` 로 반영합니다.
@@ -926,7 +931,7 @@ kubectl apply -f GKE-deployment-GitHub.yaml
                - name: ghcr-secret
              containers:
                - name: backend
-                 image: ghcr.io/<Your registry>/todo-lab-ai:prod
+                 image: ghcr.io/<Your registry>/todo-openai-agent:prod
        ```
      - **방법 B (기본 ServiceAccount에 자동 연결 - YAML 수정 불필요, 추천)**:
        네임스페이스의 기본 계정에 시크릿을 패치하면 모든 파드가 자동으로 인증을 사용합니다:

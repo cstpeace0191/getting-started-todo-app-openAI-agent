@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Alert from 'react-bootstrap/Alert';
+import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
 import { useI18n } from '../i18nContext';
 import { localToday, monthRange, weekRange, yearRange } from '../dates';
@@ -7,6 +9,13 @@ import { ItemDisplay } from './ItemDisplay';
 import { BulkBar } from './BulkBar';
 import { useSelection } from './useSelection';
 import type { TodoItem } from './ItemDisplay';
+
+interface Briefing {
+    summary: string;
+    focus: { item_id: string; name: string; reason: string }[];
+    warnings: string[];
+    tips: string[];
+}
 
 const NO_ITEMS: TodoItem[] = [];
 
@@ -29,6 +38,10 @@ export function DatePanel() {
     const [calEnd, setCalEnd] = useState(today);
     const [items, setItems] = useState<TodoItem[] | null>(null);
     const [aiEnabled, setAiEnabled] = useState(false);
+    const [briefing, setBriefing] = useState<Briefing | null>(null);
+    const [briefingState, setBriefingState] = useState<
+        'idle' | 'loading' | 'failed'
+    >('idle');
     const selection = useSelection(items ?? NO_ITEMS);
     const clearSelection = selection.clear;
 
@@ -40,6 +53,28 @@ export function DatePanel() {
             )
             .catch(() => setAiEnabled(false));
     }, []);
+
+    // AI 브리핑: OpenAI 에이전트가 서버에서 할 일 DB 를 직접 조회해 오늘의 우선순위를 알려준다
+    const loadBriefing = () => {
+        setBriefingState('loading');
+        fetch('/api/ai/briefing', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ today }),
+        })
+            .then((r) => {
+                if (!r.ok) throw new Error(`HTTP error ${r.status}`);
+                return r.json() as Promise<Briefing>;
+            })
+            .then((data) => {
+                setBriefing(data);
+                setBriefingState('idle');
+            })
+            .catch((err: unknown) => {
+                console.error('Failed to load briefing:', err);
+                setBriefingState('failed');
+            });
+    };
 
     const range: DateRange = useMemo(() => {
         switch (mode) {
@@ -149,6 +184,69 @@ export function DatePanel() {
                     </option>
                 ))}
             </Form.Select>
+
+            {aiEnabled && (
+                <div className="mb-3">
+                    <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        onClick={loadBriefing}
+                        disabled={briefingState === 'loading'}
+                    >
+                        {briefingState === 'loading'
+                            ? t('briefingLoading')
+                            : t('briefingBtn')}
+                    </Button>
+                    {briefingState === 'failed' && (
+                        <p className="text-danger small mt-2 mb-0">
+                            {t('briefingFailed')}
+                        </p>
+                    )}
+                    {briefing && (
+                        <Alert variant="light" className="mt-2 mb-0">
+                            <p className="mb-2">{briefing.summary}</p>
+                            {briefing.focus.length > 0 && (
+                                <>
+                                    <strong>{t('briefingFocus')}</strong>
+                                    <ol className="mb-2">
+                                        {briefing.focus.map((f) => (
+                                            <li key={f.item_id}>
+                                                {f.name}
+                                                <span className="text-muted">
+                                                    {' — '}
+                                                    {f.reason}
+                                                </span>
+                                            </li>
+                                        ))}
+                                    </ol>
+                                </>
+                            )}
+                            {briefing.warnings.length > 0 && (
+                                <>
+                                    <strong className="text-danger">
+                                        {t('briefingWarnings')}
+                                    </strong>
+                                    <ul className="mb-2">
+                                        {briefing.warnings.map((w) => (
+                                            <li key={w}>{w}</li>
+                                        ))}
+                                    </ul>
+                                </>
+                            )}
+                            {briefing.tips.length > 0 && (
+                                <>
+                                    <strong>{t('briefingTips')}</strong>
+                                    <ul className="mb-0">
+                                        {briefing.tips.map((tip) => (
+                                            <li key={tip}>{tip}</li>
+                                        ))}
+                                    </ul>
+                                </>
+                            )}
+                        </Alert>
+                    )}
+                </div>
+            )}
 
             {mode === 'calendar' && (
                 <div className="calendar-range mb-3">

@@ -34,7 +34,7 @@ Katenary는 `compose`(`docker compose`, `podman compose`, `nerdctl compose` 등)
 
 ---
 
-## 📌 현재 프로젝트(`getting-started-todo-app`)에서의 적용 및 구성
+## 📌 현재 프로젝트(`getting-started-todo-app-openAI-agent`)에서의 적용 및 구성
 
 본 프로젝트에서는 환경별 Docker Compose 파일을 쿠버네티스 표준 Helm Chart로 자동 변환하고 배포하기 위해 Katenary를 사용합니다.
 
@@ -42,9 +42,9 @@ Katenary는 `compose`(`docker compose`, `podman compose`, `nerdctl compose` 등)
 
 | 환경 (Environment) | 소스 Compose 파일 | 생성된 Helm Chart 경로 | 대상 클러스터 및 컨테이너 이미지 | 상세 배포 가이드 문서 |
 |---|---|---|---|---|
-| **로컬 KIND (Local)** | `compose-local_kind.yaml` | `charts/getting-started-todo-app.local_kind` | 로컬 KIND (`todo-backend:prod`) | [README-local_kind.md](charts/getting-started-todo-app.local_kind/README-local_kind.md) |
-| **GitHub Packages (GHCR)** | `compose-github_kind.yaml` | `charts/getting-started-todo-app.github_kind` | KIND / 원격 GHCR (`ghcr.io/...`) | [README-github_kind.md](charts/getting-started-todo-app.github_kind/README-github_kind.md) |
-| **GCP Artifact Registry / GKE** | `compose-gcp_gke.yaml` | `charts/getting-started-todo-app.gcp_gke` | GKE / GCP Artifact Registry (`asia-northeast3-docker.pkg.dev/...`) | [README-gcp_gke.md](charts/getting-started-todo-app.gcp_gke/README-gcp_gke.md) |
+| **로컬 KIND (Local)** | `compose-local_kind.yaml` | `charts/getting-started-todo-app-openai-agent.local_kind` | 로컬 KIND (`todo-backend:prod`) | [README.md](charts/getting-started-todo-app-openai-agent.local_kind/README.md) |
+| **GitHub Packages (GHCR)** | `compose-github_kind.yaml` | `charts/getting-started-todo-app-openai-agent.github_kind` | KIND / 원격 GHCR (`ghcr.io/...`) | [README.md](charts/getting-started-todo-app-openai-agent.github_kind/README.md) |
+| **GCP Artifact Registry / GKE** | `compose-gcp_gke.yaml` | `charts/getting-started-todo-app-openai-agent.gcp_gke` | GKE / GCP Artifact Registry (`asia-northeast3-docker.pkg.dev/...`) | [README.md](charts/getting-started-todo-app-openai-agent.gcp_gke/README.md) |
 
 ### 프로젝트 내 Katenary 변환 명령어
 
@@ -52,13 +52,13 @@ Katenary는 `compose`(`docker compose`, `podman compose`, `nerdctl compose` 등)
 
 ```bash
 # 1. 로컬 KIND용 Helm Chart 생성
-katenary convert -c compose-local_kind.yaml -o charts/getting-started-todo-app.local_kind -a 1.0.0 -v 0.1.0 -f
+katenary convert -c compose-local_kind.yaml -o charts/getting-started-todo-app-openai-agent.local_kind -a 1.0.0 -v 0.1.0 -f
 
 # 2. GitHub Packages (GHCR) 원격 이미지용 Helm Chart 생성
-katenary convert -c compose-github_kind.yaml -o charts/getting-started-todo-app.github_kind -a 1.0.0 -v 0.1.0 -f
+katenary convert -c compose-github_kind.yaml -o charts/getting-started-todo-app-openai-agent.github_kind -a 1.0.0 -v 0.1.0 -f
 
 # 3. GCP Artifact Registry / GKE용 Helm Chart 생성
-katenary convert -c compose-gcp_gke.yaml -o charts/getting-started-todo-app.gcp_gke -a 1.0.0 -v 0.1.0 -f
+katenary convert -c compose-gcp_gke.yaml -o charts/getting-started-todo-app-openai-agent.gcp_gke -a 1.0.0 -v 0.1.0 -f
 ```
 
 - **옵션 설명**:
@@ -134,11 +134,11 @@ services:
 
 ### 생성되는 Helm Chart 디렉터리 구조
 
-로컬 KIND 차트(`charts/getting-started-todo-app.local_kind/`) 기준으로 생성되는 실제 구조입니다:
+로컬 KIND 차트(`charts/getting-started-todo-app-openai-agent.local_kind/`) 기준으로 생성되는 실제 구조입니다:
 
 ```text
-charts/getting-started-todo-app.local_kind/
-├── Chart.yaml              # 차트 메타데이터 (name: getting-started-todo-app, version: 0.1.0, appVersion: 1.0.0)
+charts/getting-started-todo-app-openai-agent.local_kind/
+├── Chart.yaml              # 차트 메타데이터 (name: getting-started-todo-app-openai-agent, version: 0.1.0, appVersion: 1.0.0)
 ├── README-local_kind.md    # 로컬 KIND 클러스터 배포 안내 문서
 ├── values.yaml             # 서비스별 기본 구성 값 (레플리카, 이미지 태그, 리소스, 영구 볼륨 등)
 └── templates/              # 렌더링된 쿠버네티스 리소스 매니페스트 템플릿
@@ -377,7 +377,7 @@ Katenary라는 프로젝트의 스타일화된 이름은 현수선(懸垂線)을
 
 - [프로젝트 메인 README](README.md)
 - [Helm Chart 상세 배포 가이드](README(HelmChart).md)
-- [로컬 KIND 배포 가이드](charts/getting-started-todo-app.local_kind/README-local_kind.md)
-- [GitHub Packages (GHCR) 배포 가이드](charts/getting-started-todo-app.github_kind/README-github_kind.md)
-- [GCP GKE 배포 가이드](charts/getting-started-todo-app.gcp_gke/README-gcp_gke.md)
+- [로컬 KIND 배포 가이드](charts/getting-started-todo-app-openai-agent.local_kind/README.md)
+- [GitHub Packages (GHCR) 배포 가이드](charts/getting-started-todo-app-openai-agent.github_kind/README.md)
+- [GCP GKE 배포 가이드](charts/getting-started-todo-app-openai-agent.gcp_gke/README.md)
 - [Katenary English Documentation](Katenary-README-EN.md)

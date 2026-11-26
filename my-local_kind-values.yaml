@@ -1,9 +1,9 @@
-# Values for todo-lab-ai
+# Values for getting-started-todo-app-openai-agent
 backend:
   serviceType: LoadBalancer
   servicePort: 80
   repository:
-    image: todo-lab-ai
+    image: getting-started-todo-app-openai-agent
     tag: prod
   replicas: 2
   nodeSelector: {}

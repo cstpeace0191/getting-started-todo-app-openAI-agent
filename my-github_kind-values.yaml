@@ -1,9 +1,9 @@
-# Values for ghcr.io/cstpeace0191/todo-lab-ai
+# Values for ghcr.io/cstpeace0191/getting-started-todo-app-openai-agent
 backend:
   serviceType: LoadBalancer
   servicePort: 80
   repository:
-    image: ghcr.io/cstpeace0191/todo-lab-ai
+    image: ghcr.io/cstpeace0191/getting-started-todo-app-openai-agent
     tag: prod
   replicas: 2
   nodeSelector: {}

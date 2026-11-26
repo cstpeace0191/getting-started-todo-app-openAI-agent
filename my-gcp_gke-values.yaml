@@ -1,9 +1,9 @@
-# Values for asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-lab-ai
+# Values for asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/getting-started-todo-app-openai-agent
 backend:
   serviceType: LoadBalancer
   servicePort: 80
   repository:
-    image: asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-lab-ai
+    image: asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/getting-started-todo-app-openai-agent
     tag: prod
   replicas: 2
   nodeSelector: {}

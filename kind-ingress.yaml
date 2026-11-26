@@ -4,7 +4,7 @@ kind: Ingress
 metadata:
   name: todo-backend-ingress
   labels:
-    app.kubernetes.io/name: getting-started-todo-app-fastapi-claude
+    app.kubernetes.io/name: getting-started-todo-app-openai-agent
     app.kubernetes.io/component: backend
   annotations:
     # NGINX Ingress Controller 구버전 호환용 어노테이션 (ingressClassName과 병행 권장)

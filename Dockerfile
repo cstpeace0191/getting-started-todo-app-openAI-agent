@@ -1,5 +1,5 @@
 ###################################################
-# Todo 앱 멀티스테이지 Dockerfile (React + FastAPI + Claude AI)
+# Todo 앱 멀티스테이지 Dockerfile (React + FastAPI + OpenAI Agents SDK AI)
 #
 # 스테이지 구성
 #   base → client-base ─┬→ client-dev     (개발: Vite 개발 서버)
@@ -83,7 +83,7 @@ RUN npm run build
 # FastAPI 백엔드용 Python 베이스 이미지. 모든 백엔드 스테이지가 공유한다.
 #
 # - SQLite 드라이버(aiosqlite)는 파이썬 표준 라이브러리 sqlite3 를 쓰고,
-#   PostgreSQL 드라이버(asyncpg)와 Anthropic SDK 는 wheel 로 설치되므로
+#   PostgreSQL 드라이버(asyncpg)와 OpenAI Agents SDK(openai-agents)는 wheel 로 설치되므로
 #   별도의 네이티브 빌드 도구가 필요 없다.
 # - PYTHONDONTWRITEBYTECODE: .pyc 파일을 만들지 않는다.
 # - PYTHONUNBUFFERED: 로그를 버퍼링 없이 즉시 출력한다 (docker logs 용).
@@ -105,7 +105,7 @@ WORKDIR /usr/local/app
 # Stage: backend-deps
 #
 # requirements.txt 의 파이썬 의존성만 설치한다 (fastapi, uvicorn, asyncpg,
-# aiosqlite, anthropic, pytest 등). backend-dev 와 final 의 공통 베이스다.
+# aiosqlite, openai-agents, pytest 등). backend-dev 와 final 의 공통 베이스다.
 # 이 파일만 먼저 복사하므로 requirements.txt 가 바뀌기 전까지 레이어가 캐시된다.
 ###################################################
 FROM backend-base AS backend-deps
@@ -122,7 +122,8 @@ RUN pip install -r requirements.txt
 #
 # 환경변수 (compose 에서 주입)
 #   POSTGRES_HOST/USER/PASSWORD/DB : 있으면 PostgreSQL, 없으면 SQLite 사용
-#   ANTHROPIC_API_KEY              : 있으면 Claude 자동 분류 활성화
+#   OPENAI_API_KEY                 : 있으면 OpenAI Agents SDK 에이전트(자동 분류·일정 브리핑) 활성화
+#   AI_MODEL                       : (선택) 사용할 OpenAI 모델 (기본 gpt-5.6-luna)
 ###################################################
 FROM backend-deps AS backend-dev
 COPY backend/main.py backend/pytest.ini ./
@@ -136,7 +137,7 @@ CMD ["python", "main.py"]
 #
 # 백엔드 pytest(spec/: routes, persistence, ai)를 실행한다. final 이미지에
 # 테스트 코드가 들어가지 않도록 별도 스테이지로 분리했다.
-# 테스트는 외부 DB 나 Claude API 없이 돌아가야 한다 (SQLite, AI 모킹).
+# 테스트는 외부 DB 나 OpenAI API 없이 돌아가야 한다 (SQLite, AI 모킹).
 ###################################################
 FROM backend-dev AS test
 RUN python -m pytest

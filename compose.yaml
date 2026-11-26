@@ -74,8 +74,12 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: todos
-      # Claude API 키 (호스트의 환경변수에서 전달, 없으면 AI 분류만 꺼짐)
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # OpenAI API 키 (Agents SDK, 호스트의 환경변수 또는 .env 에서 전달, 없으면 AI 기능만 꺼짐)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # (선택) 사용할 모델. 비우면 기본 모델(gpt-5.6-luna)
+      AI_MODEL: ${AI_MODEL:-}
+      # (선택) 1 로 두면 OpenAI 대시보드(Traces)로의 실행 기록 전송을 끈다
+      OPENAI_AGENTS_DISABLE_TRACING: ${OPENAI_AGENTS_DISABLE_TRACING:-0}
     depends_on:
       postgres:
         condition: service_healthy

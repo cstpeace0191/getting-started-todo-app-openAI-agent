@@ -14,6 +14,7 @@ SQLite 및 PostgreSQL 데이터베이스와의 비동기 연동을 지원하며,
 - **비동기 DB 클라이언트**: 
   - [aiosqlite](https://github.com/omnilib/aiosqlite) (SQLite)
   - [asyncpg](https://github.com/MagicStack/asyncpg) (PostgreSQL)
+- **AI**: [OpenAI Agents SDK](https://openai.github.io/openai-agents-python/) (`openai-agents`)
 - **테스트 프레임워크**: [pytest](https://docs.pytest.org/), `pytest-asyncio`, `httpx`
 
 ---
@@ -24,7 +25,11 @@ SQLite 및 PostgreSQL 데이터베이스와의 비동기 연동을 지원하며,
 backend/
 ├── src/
 │   ├── main.py              # FastAPI 메인 앱 및 라이프사이클(Lifespan) 관리
-│   ├── models.py            # Pydantic 데이터 모델 (Item, ItemCreate 등)
+│   ├── models.py            # Pydantic 데이터 모델 (Item, ItemCreate, Briefing 등)
+│   ├── ai/                  # OpenAI Agents SDK 기반 AI 기능
+│   │   ├── agent.py         # 공통 실행·옵션·오류 처리
+│   │   ├── classifier.py    # 할 일 자동 분류
+│   │   └── planner.py       # 일정 브리핑 에이전트 (함수 도구)
 │   ├── persistence/         # 비동기 데이터베이스 계층
 │   │   ├── __init__.py      # DB 엔진 자동 선택 (SQLite / PostgreSQL)
 │   │   ├── sqlite.py        # aiosqlite 기반 SQLite 구현
@@ -32,8 +37,9 @@ backend/
 │   └── routes/              # API 라우터
 │       ├── __init__.py
 │       ├── greeting.py      # /api/greeting 라우트
-│       └── items.py         # /api/items CRUD 라우트
+│       └── items.py         # /api/items CRUD, 재분류, AI 브리핑 라우트
 ├── spec/                    # pytest 기반 비동기 단위/통합 테스트
+│   ├── ai/
 │   ├── persistence/
 │   └── routes/
 ├── Dockerfile               # 컨테이너 빌드 파일
@@ -226,26 +232,30 @@ python main.py
 | `GET` | `/api/items` (응답) | 응답 형식 | - | `[{"id": "...", "name": "...", "completed": false, "category": "study", "priority": "high", "registered": false, "due_date": "2026-11-25", "due_time": "09:00"}, ...]` |
 | `GET` | `/api/schedule?date=YYYY-MM-DD` | 오늘 일정: `date` 의 항목 + 기한이 지난 미완료 항목 (등록 여부 무관, 날짜·시간순). `date` 생략 시 서버 오늘 | - | 항목 배열 (잘못된 날짜: 422) |
 | `GET` | `/api/schedule?start=YYYY-MM-DD&end=YYYY-MM-DD` | 기간 일정: 기한이 `start`~`end`(양끝 포함) 사이인 항목. 주간·월간·연간·캘린더 검색에 사용. `start`/`end` 는 함께 줘야 하고 `date` 와 같이 쓸 수 없음 | - | 항목 배열 (`start` > `end`, 한쪽만 지정, 잘못된 날짜: 422) |
-| `POST` | `/api/items` | 새 Todo 항목 추가 (Claude 자동 분류 + 일정 추출) | `{"name": "할 일 내용", "today": "YYYY-MM-DD", "due_date": "YYYY-MM-DD", "due_time": "HH:MM"}` (`name` 외 선택. `due_*` 를 주면 AI 추출값보다 우선) | `{"id": "UUID", "name": "할 일 내용", "completed": false, "category": "...", "priority": "..."}` |
+| `POST` | `/api/items` | 새 Todo 항목 추가 (AI 자동 분류 + 일정 추출) | `{"name": "할 일 내용", "today": "YYYY-MM-DD", "due_date": "YYYY-MM-DD", "due_time": "HH:MM"}` (`name` 외 선택. `due_*` 를 주면 AI 추출값보다 우선) | `{"id": "UUID", "name": "할 일 내용", "completed": false, "category": "...", "priority": "..."}` |
 | `PUT` | `/api/items/{id}` | Todo 항목 수정 (분류 수동 변경 가능) | `{"name": "수정 이름", "completed": true, "category": "work", "priority": "low"}` (모두 선택). `{"registered": true}` 로 **등록(Register)**, `due_date`/`due_time` 으로 일정 변경 (`""` 이면 삭제, 날짜 삭제 시 시간도 삭제) | 수정된 항목 |
-| `POST` | `/api/items/{id}/classify?today=YYYY-MM-DD` | Claude 로 다시 분류 (문장에서 일정도 다시 추출, 못 찾으면 기존 일정 유지) | - | 분류된 항목 (AI 꺼짐: 503, 실패: 502) |
-| `GET` | `/api/ai/status` | AI 분류 사용 가능 여부 | - | `{"enabled": true}` |
+| `POST` | `/api/items/{id}/classify?today=YYYY-MM-DD` | AI 로 다시 분류 (문장에서 일정도 다시 추출, 못 찾으면 기존 일정 유지) | - | 분류된 항목 (AI 꺼짐: 503, 실패: 502) |
+| `POST` | `/api/ai/briefing` | AI 일정 브리핑 (에이전트가 DB 를 조회) | `{"today": "YYYY-MM-DD"}` (선택) | `{"summary": "...", "focus": [{"item_id", "name", "reason"}], "warnings": [], "tips": []}` (AI 꺼짐: 503, 실패: 502) |
+| `GET` | `/api/ai/status` | AI 기능 사용 가능 여부 | - | `{"enabled": true}` |
 | `DELETE` | `/api/items/{id}` | Todo 항목 삭제 | - | `HTTP 200 OK` |
 
 ---
 
-## 🤖 AI 자동 분류 (Claude API)
+## 🤖 AI 기능 (OpenAI Agents SDK)
 
-할 일을 추가하면 Claude API(`claude-opus-5-5`)를 **짧은 단일 호출**로 불러 카테고리와 우선순위를 자동으로 붙입니다. 코드는 `src/ai/classifier.py` 에 있습니다.
+AI 기능은 모두 **OpenAI Agents SDK**(`openai-agents`)의 `Agent` 로 동작합니다. 공통 실행 코드는 `src/ai/agent.py` (`Agent` 생성 + `Runner.run` 실행, `output_type` 으로 구조화 출력)에 있고, 모델은 `AI_MODEL` 로 바꿀 수 있습니다(생략하면 `gpt-5.6-luna`). AI 전체를 끄려면 `AI_ENABLED=false` (구 이름 `AI_CLASSIFY_ENABLED` 도 인정).
+
+### 1) 자동 분류 — `src/ai/classifier.py`
+할 일을 추가하면 도구 없는 단일 턴 `Agent` 가 카테고리·우선순위·일정을 구조화 출력으로 돌려줍니다.
 
 | 필드 | 값 | 화면 표시 |
 | :--- | :--- | :--- |
 | `category` | `study` / `work` / `personal` | 학업 / 업무 / 개인 |
 | `priority` | `high` / `medium` / `low` | 높음 / 보통 / 낮음 |
 
-- **Structured Outputs**: `client.beta.messages.parse(output_format=Classification)` 로 응답을 Pydantic 모델로 검증합니다.
-- **비용·지연 절감**: 단순 분류이므로 `output_config={"effort": "low"}` 를 사용합니다.
-- **거절 대비**: `fallbacks="default"` (server-side fallback 베타)로 안전 분류기가 거절하면 서버가 다른 모델로 자동 재시도합니다.
+- **구조화 출력**: `Agent(output_type=Classification)` 으로 OpenAI Structured Outputs(strict JSON 스키마)를 강제하고, `result.final_output` 을 Pydantic 모델로 받습니다.
+- **비용·지연 절감**: 단순 분류이므로 가벼운 기본 모델(`gpt-5.6-luna`, SDK 가 GPT-5 계열 기본 설정 `reasoning.effort="none"` 을 적용)을 사용합니다. 별도 하위 프로세스 없이 서버 프로세스 안에서 모델 API 를 직접 호출합니다.
+- **격리**: 에이전트에는 코드에서 넘겨 준 함수 도구만 노출되고(분류기는 `tools=[]`), `Runner.run` 은 호출마다 새 대화로 시작하므로 요청 간 내용이 섞이지 않습니다. `max_turns=8` 로 도구 호출 루프에 상한을 둡니다.
 - **장애 격리**: 키가 없거나 API 호출이 실패하면 분류만 비어 있는 상태(`null`)로 저장되고, CRUD 는 그대로 동작합니다.
 - **일정 추출**: 클라이언트가 보낸 오늘 날짜(`today`)를 기준으로 "내일 오전 9시" 같은 표현을 `due_date`/`due_time` 으로 변환합니다. AI 가 돌려준 값은 형식·존재 여부를 검증하고 틀리면 버립니다.
 - **DB 마이그레이션**: 기존 `todo_items` 테이블에 `category`, `priority` 컬럼이 없으면 시작 시 자동으로 추가합니다 (SQLite/PostgreSQL).
@@ -254,30 +264,39 @@ python main.py
 
 | 환경 변수 | 설명 |
 | :--- | :--- |
-| `ANTHROPIC_API_KEY` | Claude API 키 |
-| `ANTHROPIC_API_KEY_FILE` | 키가 들어 있는 파일 경로 (Docker/K8s Secret 마운트용, 우선 적용) |
-| `AI_CLASSIFY_ENABLED` | `false` 로 두면 키가 있어도 분류 비활성화 |
+| `OPENAI_API_KEY` | OpenAI API 키 ([platform.openai.com](https://platform.openai.com/api-keys)) |
+| `OPENAI_API_KEY_FILE` | 키가 들어 있는 파일 경로 (Docker/K8s Secret 마운트용, 우선 적용) |
+| `AI_MODEL` | 사용할 모델 (기본 `gpt-5.6-luna`) |
+| `AI_ENABLED` | `false` 로 두면 키가 있어도 AI 기능 전체 비활성화 (구 이름 `AI_CLASSIFY_ENABLED` 도 인정) |
+| `OPENAI_BASE_URL` | (선택) OpenAI 호환 엔드포인트 주소 |
+| `OPENAI_AGENTS_DISABLE_TRACING` | (선택) `1` 이면 OpenAI 대시보드(Traces)로의 실행 기록 전송을 끔 |
 
 ```powershell
 # 로컬 실행 (PowerShell)
-$env:ANTHROPIC_API_KEY = "<your-key>"
+$env:OPENAI_API_KEY = "<your-key>"
 uv run python main.py
 ```
 
-Docker Compose 는 호스트의 `ANTHROPIC_API_KEY` 를 백엔드 컨테이너로 전달합니다. Kubernetes(kind)에서는 아래처럼 Secret 을 만들면 `todo-backend` Deployment 가 읽어 갑니다 (Secret 이 없어도 Pod 는 정상 기동).
+Docker Compose 는 호스트의 `OPENAI_API_KEY` 와 `AI_MODEL` 을 백엔드 컨테이너로 전달합니다. Kubernetes(kind/GKE)에서는 아래처럼 Secret 을 만들면 `todo-backend` Deployment 가 읽어 갑니다 (Secret 이 없어도 Pod 는 정상 기동).
 
 ```bash
-kubectl create secret generic todo-ai-secret --from-literal=ANTHROPIC_API_KEY=<your-key>
+kubectl create secret generic todo-ai-secret --from-literal=OPENAI_API_KEY=<your-key>
 kubectl rollout restart deployment/todo-backend
 ```
 
-> 테스트(`spec/ai`, `spec/routes/test_classifyItem.py`)는 Claude 클라이언트를 mock 으로 대체하므로 실제 API 를 호출하지 않고 비용도 들지 않습니다.
+> 테스트(`spec/ai`, `spec/routes/test_classifyItem.py`)는 Agents SDK 의 `Runner` 를 mock 으로 대체하므로 실제 API 를 호출하지 않고 비용도 들지 않습니다.
+
+### 2) 일정 브리핑 에이전트 (신규) — `src/ai/planner.py`
+`POST /api/ai/briefing` (`{"today": "YYYY-MM-DD"}`, 선택). 에이전트가 함수 도구(앱 내 비동기 함수를 `function_tool` 로 감싸 `FunctionTool` 로 등록)
+`get_schedule` / `search_items` / `get_category_counts` 로 **할 일 DB 를 직접 조회**한 뒤, 오늘 먼저 할 일(`focus`),
+주의사항(`warnings`), 조언(`tips`)을 담은 브리핑을 돌려줍니다. 도구는 읽기 전용이며 Bash/파일 같은 다른 도구는 쓸 수 없습니다.
+AI 꺼짐: 503, 실패: 502. 화면에서는 날짜별 검색의 **AI 브리핑** 버튼으로 호출합니다.
 
 ---
 
 ## 🧪 테스트 실행 (Running Tests)
 
-`pytest`를 사용하여 영속성 계층 및 API 라우트에 대한 비동기 단위 테스트를 실행합니다.
+`pytest`를 사용하여 영속성 계층, AI 모듈 및 API 라우트에 대한 비동기 단위 테스트를 실행합니다.
 
 ```bash
 # 전체 테스트 실행

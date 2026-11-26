@@ -2,7 +2,7 @@ import uuid
 import datetime
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query, Response, status
-from ..models import BulkDelete, BulkDeleteResult, Category, CategoryCount, Item, ItemCreate, ItemUpdate, valid_date
+from ..models import Briefing, BriefingRequest, BulkDelete, BulkDeleteResult, Category, CategoryCount, Item, ItemCreate, ItemUpdate, valid_date
 from .. import persistence as db
 from .. import ai
 
@@ -63,7 +63,7 @@ async def get_schedule(
 @router.post("/api/items", response_model=Item, status_code=status.HTTP_200_OK)
 @router.post("/items", response_model=Item, status_code=status.HTTP_200_OK, include_in_schema=False)
 async def add_item(payload: ItemCreate):
-    # Claude 로 카테고리/우선순위 자동 분류 (실패하면 None 으로 저장)
+    # OpenAI 에이전트로 카테고리/우선순위 자동 분류 (실패하면 None 으로 저장)
     classification = await ai.classify_item(payload.name, payload.today)
 
     # 사용자가 날짜를 직접 지정했으면 그것을 우선, 아니면 AI 가 추출한 값
@@ -120,7 +120,7 @@ async def update_item(item_id: str, payload: ItemUpdate):
 
 @router.post("/api/items/{item_id}/classify", response_model=Item)
 async def classify_existing_item(item_id: str, today: Optional[str] = None):
-    """기존 할 일을 Claude 로 다시 분류한다 (분류 전 항목, 이름 변경 후 등)."""
+    """기존 할 일을 OpenAI 에이전트로 다시 분류한다 (분류 전 항목, 이름 변경 후 등)."""
     existing_item = await db.get_item(item_id)
     if not existing_item:
         raise HTTPException(status_code=404, detail="Item not found")
@@ -128,7 +128,7 @@ async def classify_existing_item(item_id: str, today: Optional[str] = None):
     if not ai.is_enabled():
         raise HTTPException(
             status_code=503,
-            detail="AI classification is disabled (ANTHROPIC_API_KEY not set)",
+            detail="AI classification is disabled (no model API key configured)",
         )
 
     classification = await ai.classify_item(existing_item["name"], valid_date(today))
@@ -157,6 +157,17 @@ async def classify_existing_item(item_id: str, today: Optional[str] = None):
 async def ai_status():
     """클라이언트가 AI 분류 버튼을 보여줄지 결정할 때 사용"""
     return {"enabled": ai.is_enabled()}
+
+
+@router.post("/api/ai/briefing", response_model=Briefing)
+async def ai_briefing(payload: BriefingRequest):
+    """OpenAI 에이전트가 할 일 DB 를 직접 조회해 오늘의 일정 브리핑을 만든다."""
+    if not ai.is_enabled():
+        raise HTTPException(status_code=503, detail="AI is disabled (no model API key configured)")
+    briefing = await ai.make_briefing(payload.today)
+    if briefing is None:
+        raise HTTPException(status_code=502, detail="AI briefing failed")
+    return briefing
 
 
 @router.delete("/api/items/{item_id}", status_code=status.HTTP_200_OK)

@@ -1,6 +1,6 @@
-# 시작하기: Todo 앱 (Getting Started Todo App - FastAPI & Claude AI)
+# 시작하기: Todo 앱 (Getting Started Todo App - FastAPI & OpenAI Agents SDK)
 
-이 프로젝트는 최신 클라우드 및 컨테이너 모범 사례를 적용한 할 일(Todo) 목록 애플리케이션입니다. **Python FastAPI** 백엔드와 **React (TypeScript, Vite)** 프론트엔드, **PostgreSQL 17** 데이터베이스, 그리고 Todo 항목 등록 시 작업 유형을 자동 판별하는 **Anthropic Claude AI** 연동 기능으로 구성되어 있습니다.
+이 프로젝트는 최신 클라우드 및 컨테이너 모범 사례를 적용한 할 일(Todo) 목록 애플리케이션입니다. **Python FastAPI** 백엔드와 **React (TypeScript, Vite)** 프론트엔드, **PostgreSQL 17** 데이터베이스, 그리고 Todo 항목 등록 시 작업 유형을 자동 판별하는 **OpenAI Agents SDK** 연동 기능으로 구성되어 있습니다.
 
 Compose 파일부터 멀티스테이지 Dockerfile, Kubernetes 배포, [Katenary](https://github.com/Katenary/katenary) 기반 Helm Chart 변환 및 자동 패치까지 상세히 다룹니다.
 
@@ -8,7 +8,7 @@ Compose 파일부터 멀티스테이지 Dockerfile, Kubernetes 배포, [Katenary
 
 ### 1) 운영 및 쿠버네티스/Helm 배포 아키텍처
 
-Helm Chart 및 운영 환경에서는 Dockerfile의 멀티스테이지 빌드(`target: final`)를 통해 React 프론트엔드가 정적 HTML/CSS/JS로 컴파일되어 FastAPI 백엔드(`backend/src/static`)에 단일 이미지(`todo-lab-ai:prod`)로 번들링됩니다.
+Helm Chart 및 운영 환경에서는 Dockerfile의 멀티스테이지 빌드(`target: final`)를 통해 React 프론트엔드가 정적 HTML/CSS/JS로 컴파일되어 FastAPI 백엔드(`backend/src/static`)에 단일 이미지(`todo-openai-agent:prod`)로 번들링됩니다.
 
 ```mermaid
 flowchart LR
@@ -17,7 +17,7 @@ flowchart LR
     subgraph K8S["Kubernetes 클러스터 (KIND / GKE)"]
         SVC["LoadBalancer Service<br/>(포트 80 ➔ 3000)"]
 
-        subgraph BackendPod["backend 파드 (todo-lab-ai:prod)"]
+        subgraph BackendPod["backend 파드 (todo-openai-agent:prod)"]
             Init["InitContainer<br/>(wait-for-postgres)"]
             subgraph Container["메인 컨테이너 (:3000)"]
                 Static["정적 React 웹 UI<br/>(HTML / CSS / JS)"]
@@ -32,7 +32,7 @@ flowchart LR
         end
     end
 
-    Claude["☁️ Anthropic Claude API<br/>(할 일 자동 분류)"]
+    LLM["☁️ OpenAI API (Agents SDK)<br/>(할 일 자동 분류)"]
 
     User -->|"HTTP (포트 80)"| SVC
     SVC -->|"트래픽 전달"| Container
@@ -40,7 +40,7 @@ flowchart LR
     FastAPI -->|"asyncpg (:5432)"| PGService
     PGService --> PGDB
     PGDB --- PVC
-    FastAPI -.->|"HTTPS 분류 요청 (선택)"| Claude
+    FastAPI -.->|"HTTPS 분류 요청 (선택)"| LLM
 ```
 
 ### 2) 로컬 개발 환경 아키텍처 (`compose.yaml`)
@@ -60,7 +60,7 @@ flowchart LR
         Vol[("todo-postgres-data 볼륨")]
     end
 
-    Claude["☁️ Claude API"]
+    LLM["☁️ OpenAI API (Agents SDK)"]
 
     User -->|"http://localhost"| Proxy
     User -->|"http://db.localhost"| Proxy
@@ -70,13 +70,13 @@ flowchart LR
     Backend -->|"asyncpg"| PG
     Adminer --> PG
     PG --- Vol
-    Backend -.->|"HTTPS 분류 요청"| Claude
+    Backend -.->|"HTTPS 분류 요청"| LLM
 ```
 
 - **프론트엔드**: React 18, TypeScript, Vite, Bootstrap 5 UI
-- **백엔드**: Python FastAPI, Uvicorn, Pydantic, Anthropic Claude API (작업 자동 분류)
+- **백엔드**: Python FastAPI, Uvicorn, Pydantic, OpenAI Agents SDK + OpenAI API (작업 자동 분류·일정 브리핑)
 - **데이터베이스**: PostgreSQL 17 (개발: SQLite/PostgreSQL 지원, 프로덕션: PostgreSQL 17 볼륨 마운트)
-- **프로덕션 번들링**: Dockerfile의 멀티스테이지 빌드(`target: final`)를 통해 React 프론트엔드가 정적 파일로 컴파일되어 FastAPI 백엔드(`backend/src/static`)에 번들링되므로 프로덕션에서는 단일 컨테이너(`todo-lab-ai:prod`)로 서비스됩니다.
+- **프로덕션 번들링**: Dockerfile의 멀티스테이지 빌드(`target: final`)를 통해 React 프론트엔드가 정적 파일로 컴파일되어 FastAPI 백엔드(`backend/src/static`)에 번들링되므로 프로덕션에서는 단일 컨테이너(`todo-openai-agent:prod`)로 서비스됩니다.
 
 개발 중에는 백엔드와 프론트엔드에 서로 다른 개발 도구가 필요하므로 두 개의 별도 서비스로 분리되어 있습니다. 이를 통해 [Vite](https://vitejs.dev/)가 React 앱을 핫 리로드하는 동안 [Uvicorn](https://www.uvicorn.org/)이 FastAPI 백엔드의 변경 사항을 실시간 반영(watch)합니다.
 
@@ -111,16 +111,16 @@ docker compose down
 
 | 환경 (Environment) | 소스 Compose 파일 | 생성된 Helm Chart 폴더 | 대상 클러스터 및 이미지 | 배포 가이드 |
 |---|---|---|---|---|
-| **로컬 KIND (Local)** | `compose-prod-build.yml` | `charts/getting-started-todo-app-fastapi-claude.local_kind` | 로컬 KIND (`todo-lab-ai:prod`) | 본 문서 4절 · [차트 README](charts/getting-started-todo-app-fastapi-claude.local_kind/README.md) |
-| **GitHub Packages (GHCR)** | `compose-prod-GitHub.yml` | `charts/getting-started-todo-app-fastapi-claude.github_kind` | KIND / 원격 GHCR (`ghcr.io/...`) | 본 문서 7절 · [차트 README](charts/getting-started-todo-app-fastapi-claude.github_kind/README.md) |
-| **GCP Artifact Registry / GKE** | `compose-prod-GCPRegistry.yml` | `charts/getting-started-todo-app-fastapi-claude.gcp_gke` | GKE / GCP Artifact Registry (`asia-northeast3-docker.pkg.dev/...`) | 본 문서 8절 · [차트 README](charts/getting-started-todo-app-fastapi-claude.gcp_gke/README.md) |
+| **로컬 KIND (Local)** | `compose-prod-build.yml` | `charts/getting-started-todo-app-openai-agent.local_kind` | 로컬 KIND (`todo-openai-agent:prod`) | 본 문서 4절 · [차트 README](charts/getting-started-todo-app-openai-agent.local_kind/README.md) |
+| **GitHub Packages (GHCR)** | `compose-prod-GitHub.yml` | `charts/getting-started-todo-app-openai-agent.github_kind` | KIND / 원격 GHCR (`ghcr.io/...`) | 본 문서 7절 · [차트 README](charts/getting-started-todo-app-openai-agent.github_kind/README.md) |
+| **GCP Artifact Registry / GKE** | `compose-prod-GCPRegistry.yml` | `charts/getting-started-todo-app-openai-agent.gcp_gke` | GKE / GCP Artifact Registry (`asia-northeast3-docker.pkg.dev/...`) | 본 문서 8절 · [차트 README](charts/getting-started-todo-app-openai-agent.gcp_gke/README.md) |
 
 ```text
 +------------------------------------+        katenary convert        +-----------------------------------------------+
 |  환경별 Docker Compose 파일        |  ===========================>  |  charts/                                      |
-|  - compose-prod-build.yml (로컬)   |                                |  ├── getting-started-todo-app-fastapi-claude.local_kind      |
-|  - compose-prod-GitHub.yml (GHCR)  |                                |  ├── getting-started-todo-app-fastapi-claude.github_kind     |
-|  - compose-prod-GCPRegistry.yml    |                                |  └── getting-started-todo-app-fastapi-claude.gcp_gke         |
+|  - compose-prod-build.yml (로컬)   |                                |  ├── getting-started-todo-app-openai-agent.local_kind      |
+|  - compose-prod-GitHub.yml (GHCR)  |                                |  ├── getting-started-todo-app-openai-agent.github_kind     |
+|  - compose-prod-GCPRegistry.yml    |                                |  └── getting-started-todo-app-openai-agent.gcp_gke         |
 +------------------------------------+                                +-----------------------------------------------+
                                                                               ||
                                                                               || helm install / upgrade
@@ -173,7 +173,7 @@ docker compose down
 
      # 2) 백엔드 프로덕션 서비스: 프론트엔드 번들 + FastAPI
      backend:
-       image: todo-lab-ai:prod        # 빌드 및 쿠버네티스 로드 시 사용할 이미지 태그
+       image: todo-openai-agent:prod        # 빌드 및 쿠버네티스 로드 시 사용할 이미지 태그
        build:
          context: ./
          target: final                # React 프론트엔드 정적 빌드와 FastAPI가 번들링된 최종 스테이지
@@ -186,7 +186,7 @@ docker compose down
          POSTGRES_USER: postgres
          POSTGRES_PASSWORD: secret
          POSTGRES_DB: todos
-         ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+         OPENAI_API_KEY: ${OPENAI_API_KEY:-}
        depends_on:
          postgres:
            condition: service_healthy # Katenary가 이를 분석하여 wait-for-postgres InitContainer 자동 구성
@@ -229,14 +229,14 @@ docker compose down
    ```
 
    #### 🔍 설정 세부 해설:
-   - **`target: final` & `image: todo-lab-ai:prod`**:
+   - **`target: final` & `image: todo-openai-agent:prod`**:
      - `Dockerfile`의 멀티스테이지 빌드를 통해 React 빌드 산출물(`dist`)을 FastAPI 백엔드의 정적 경로(`backend/src/static`)로 복사한 단일 프로덕션 이미지입니다.
-     - `image:` 속성을 명시하여 `kind load docker-image todo-lab-ai:prod --name my-k8s` 시 일치하는 태그로 원활하게 클러스터에 주입할 수 있습니다.
+     - `image:` 속성을 명시하여 `kind load docker-image todo-openai-agent:prod --name my-k8s` 시 일치하는 태그로 원활하게 클러스터에 주입할 수 있습니다.
    - **`ports` / `expose: 3000` (쿠버네티스 Service 생성)**:
      - Katenary는 Compose 서비스에 명시적인 포트가 정의되어 있지 않으면 쿠버네티스 `Service` 매니페스트를 생성하지 않습니다.
      - `ports: - 3000:3000` 선언을 통해 Helm 변환 시 `templates/backend/service.yaml`(Katenary 기본: ClusterIP, port 3000 → `patch-service-type.py` 적용 후: LoadBalancer, port 80→3000)이 정상 생성되어 외부 포트포워딩 및 파드 간 연결이 가능해집니다.
    - **`katenary.v3/map-env` (쿠버네티스 서비스 DNS 동적 바인딩)**:
-     - Docker Compose 환경에서는 `POSTGRES_HOST: postgres`로 통신하지만, 쿠버네티스에서는 Helm 릴리스 이름에 따라 PostgreSQL 서비스의 실제 FQDN이 `<ReleaseName>-getting-started-todo-app-postgres` 형태로 지정됩니다.
+     - Docker Compose 환경에서는 `POSTGRES_HOST: postgres`로 통신하지만, 쿠버네티스에서는 Helm 릴리스 이름에 따라 PostgreSQL 서비스의 실제 FQDN이 `<ReleaseName>-getting-started-todo-app-openai-agent-postgres` 형태로 지정됩니다.
      - `map-env` 라벨을 적용하면 Katenary가 생성하는 `backend` ConfigMap 내 `POSTGRES_HOST` 값이 Helm 템플릿(`'{{ include "<chart>.fullname" . }}-postgres'`)으로 변환되어 DB 연결 실패를 완벽히 예방합니다.
    - **`depends_on` 과 InitContainer**:
      - `postgres` 서비스의 `condition: service_healthy` 의존성을 인식하여, Katenary가 백엔드 Deployment 템플릿에 `busybox` 기반의 `wait-for-postgres` InitContainer를 자동 생성합니다. 이를 통해 PostgreSQL 포트(5432)가 정상 응답할 때까지 대기 후 백엔드 메인 컨테이너가 안전하게 기동됩니다.
@@ -257,7 +257,7 @@ python scripts/generate-chart.py local_kind
 - **대상**: `local_kind`, `github_kind`, `gcp_gke`, `all`(기본값, 3개 일괄 생성)
 - **옵션**: `-a 1.0.0`은 `Chart.yaml`의 `appVersion`, `-v 0.1.0`은 `version`이며 둘 다 생략 가능합니다.
 - **스크립트가 하는 일**:
-  1. 임시 폴더 `getting-started-todo-app/`에 소스 Compose 파일을 `compose.yaml`로 복사합니다. (차트 이름은 폴더 이름으로 정해집니다.)
+  1. 임시 폴더 `getting-started-todo-app-openai-agent/`에 소스 Compose 파일을 `compose.yaml`로 복사합니다. (차트 이름은 폴더 이름으로 정해집니다.)
   2. 그 폴더에서 `katenary convert -o <차트 경로> -a <appVersion> -v <version> -i <아이콘 URL> -f`를 실행합니다.
   3. `scripts/patch-service-type.py`로 backend Service를 `LoadBalancer`, 포트 80→3000으로 패치합니다.
 
@@ -266,7 +266,7 @@ python scripts/generate-chart.py local_kind
 
 #### 생성되는 차트 디렉터리 구조:
 ```text
-charts/getting-started-todo-app-fastapi-claude.local_kind/
+charts/getting-started-todo-app-openai-agent.local_kind/
 ├── Chart.yaml              # 차트 메타데이터 (이름, 버전, appVersion)
 ├── README.md               # Katenary가 생성한 차트 안내 문서
 ├── values.yaml             # 서비스별 기본 구성 값 (레플리카, 이미지 등)
@@ -297,13 +297,13 @@ charts/getting-started-todo-app-fastapi-claude.local_kind/
 
 ```bash
 # 1. 로컬 KIND 환경 차트 검증
-helm lint charts/getting-started-todo-app-fastapi-claude.local_kind
+helm lint charts/getting-started-todo-app-openai-agent.local_kind
 
 # 2. GitHub Packages (GHCR) 원격 이미지 차트 검증
-helm lint charts/getting-started-todo-app-fastapi-claude.github_kind
+helm lint charts/getting-started-todo-app-openai-agent.github_kind
 
 # 3. GCP Artifact Registry / GKE 차트 검증
-helm lint charts/getting-started-todo-app-fastapi-claude.gcp_gke
+helm lint charts/getting-started-todo-app-openai-agent.gcp_gke
 
 # 4. 전체 환경 차트 일괄 검증 (PowerShell)
 Get-ChildItem -Directory charts | ForEach-Object { helm lint $_.FullName }
@@ -314,13 +314,13 @@ Get-ChildItem -Directory charts | ForEach-Object { helm lint $_.FullName }
 정상적으로 검증을 통과하면 다음과 같이 `0 chart(s) failed` 메시지가 출력됩니다:
 
 ```text
-==> Linting charts/getting-started-todo-app-fastapi-claude.local_kind
+==> Linting charts/getting-started-todo-app-openai-agent.local_kind
 1 chart(s) linted, 0 chart(s) failed
 
-==> Linting charts/getting-started-todo-app-fastapi-claude.github_kind
+==> Linting charts/getting-started-todo-app-openai-agent.github_kind
 1 chart(s) linted, 0 chart(s) failed
 
-==> Linting charts/getting-started-todo-app-fastapi-claude.gcp_gke
+==> Linting charts/getting-started-todo-app-openai-agent.gcp_gke
 1 chart(s) linted, 0 chart(s) failed
 ```
 
@@ -335,7 +335,7 @@ Get-ChildItem -Directory charts | ForEach-Object { helm lint $_.FullName }
 실제 쿠버네티스 리소스로 렌더링되는 최종 YAML 매니페스트를 로컬에서 즉시 확인합니다:
 
 ```bash
-helm template todo-app charts/getting-started-todo-app-fastapi-claude.local_kind
+helm template todo-app charts/getting-started-todo-app-openai-agent.local_kind
 ```
 
 #### 3) 클러스터 가상 배포 시뮬레이션 (Dry-Run)
@@ -343,7 +343,7 @@ helm template todo-app charts/getting-started-todo-app-fastapi-claude.local_kind
 쿠버네티스 API 서버에 실제로 리소스를 생성하지 않고, 배포가 유효하게 수락되는지 서버 측 가상 시뮬레이션을 수행합니다:
 
 ```bash
-helm install todo-app charts/getting-started-todo-app-fastapi-claude.local_kind --dry-run=server
+helm install todo-app charts/getting-started-todo-app-openai-agent.local_kind --dry-run=server
 ```
 
 ---
@@ -364,10 +364,10 @@ kubectl get nodes
    - `backend` 서비스는 프로덕션 타깃(`final`) 이미지를 사용합니다:
      ```bash
      # 1. 프로덕션 이미지 빌드 (FastAPI + React 번들)
-     docker build -t todo-lab-ai:prod --target final .
+     docker build -t todo-openai-agent:prod --target final .
 
      # 2. KIND 클러스터(my-k8s)로 이미지 전달
-     kind load docker-image todo-lab-ai:prod --name my-k8s
+     kind load docker-image todo-openai-agent:prod --name my-k8s
      ```
 
 2. **Helm 차트 배포 실행**:
@@ -376,7 +376,7 @@ kubectl get nodes
 
    - **방법 A. 기본 설정값으로 즉시 배포**:
      ```bash
-     helm install todo-app charts/getting-started-todo-app-fastapi-claude.local_kind
+     helm install todo-app charts/getting-started-todo-app-openai-agent.local_kind
      ```
 
    - **방법 B. 설정값 추출 후 사용자 정의 배포 (`my-local_kind-values.yaml`)**:
@@ -385,10 +385,10 @@ kubectl get nodes
      1. **설정값(`values.yaml`) 추출**:
         ```bash
         # Bash / Git Bash
-        helm show values charts/getting-started-todo-app-fastapi-claude.local_kind > my-local_kind-values.yaml
+        helm show values charts/getting-started-todo-app-openai-agent.local_kind > my-local_kind-values.yaml
 
         # PowerShell
-        helm show values charts/getting-started-todo-app-fastapi-claude.local_kind | Out-File -Encoding utf8 my-local_kind-values.yaml
+        helm show values charts/getting-started-todo-app-openai-agent.local_kind | Out-File -Encoding utf8 my-local_kind-values.yaml
         ```
         *(참고: 이미 클러스터에 배포된 릴리스에서 전체 계산된 값을 추출할 때는 `helm get values todo-app --all > my-local_kind-values.yaml` 사용 가능)*
 
@@ -397,9 +397,9 @@ kubectl get nodes
 
      3. **추출/수정한 설정값 파일(`-f`)을 적용하여 배포**:
         ```bash
-        helm install todo-app charts/getting-started-todo-app-fastapi-claude.local_kind -f my-local_kind-values.yaml
+        helm install todo-app charts/getting-started-todo-app-openai-agent.local_kind -f my-local_kind-values.yaml
         ```
-        *(기존 릴리스가 이미 설치되어 있는 경우: `helm upgrade todo-app charts/getting-started-todo-app-fastapi-claude.local_kind -f my-local_kind-values.yaml`)*
+        *(기존 릴리스가 이미 설치되어 있는 경우: `helm upgrade todo-app charts/getting-started-todo-app-openai-agent.local_kind -f my-local_kind-values.yaml`)*
 
 3. **배포 상태 확인**:
    ```bash
@@ -413,7 +413,7 @@ kubectl get nodes
 
 4. **[심화] Service LoadBalancer 지원을 위한 차트 수정 방법**:
 
-   Katenary v3는 Compose 파일을 변환할 때 기본적으로 `spec.type` 필드를 명시하지 않아 쿠버네티스 기본값인 **`ClusterIP`** 서비스로 생성됩니다. 백엔드 서비스를 `LoadBalancer` (또는 `NodePort`) 타입으로 동적 전환할 수 있도록 지원하려면 `charts/getting-started-todo-app-fastapi-claude.local_kind`의 **다음 2개 파일**을 수정해야 합니다 (본 프로젝트의 3개 차트에는 이미 적용되어 있습니다):
+   Katenary v3는 Compose 파일을 변환할 때 기본적으로 `spec.type` 필드를 명시하지 않아 쿠버네티스 기본값인 **`ClusterIP`** 서비스로 생성됩니다. 백엔드 서비스를 `LoadBalancer` (또는 `NodePort`) 타입으로 동적 전환할 수 있도록 지원하려면 `charts/getting-started-todo-app-openai-agent.local_kind`의 **다음 2개 파일**을 수정해야 합니다 (본 프로젝트의 3개 차트에는 이미 적용되어 있습니다):
 
    ##### ① `templates/backend/service.yaml` 수정
    `spec:` 블록 바로 아래에 `type:` 및 표준 HTTP 80번 포트(`targetPort: 3000` 매핑)를 추가합니다:
@@ -426,7 +426,7 @@ kubectl get nodes
        protocol: TCP
        targetPort: 3000
      selector:
-       {{- include "getting-started-todo-app-fastapi-claude.selectorLabels" . | nindent 4 }}
+       {{- include "getting-started-todo-app-openai-agent.selectorLabels" . | nindent 4 }}
        katenary.v3/component: backend
    ```
 
@@ -438,7 +438,7 @@ kubectl get nodes
      serviceType: LoadBalancer   # 기본값 LoadBalancer (필요 시 ClusterIP로 변경 가능)
      servicePort: 80             # 표준 HTTP 포트 (포트 번호 없이 접속 가능)
      repository:
-       image: todo-lab-ai
+       image: getting-started-todo-app-openai-agent
        tag: prod
    ```
 
@@ -446,7 +446,7 @@ kubectl get nodes
    > **서비스 타입 패치 자동화 스크립트**:
    > Katenary로 차트를 새로 생성할 때마다(`katenary convert -f`) 위 두 파일을 수동으로 편집하지 않고 자동으로 패치할 수 있도록 본 프로젝트는 전용 파이썬 스크립트를 제공합니다:
    > ```bash
-   > python scripts/patch-service-type.py charts/getting-started-todo-app-fastapi-claude.local_kind
+   > python scripts/patch-service-type.py charts/getting-started-todo-app-openai-agent.local_kind
    > ```
    > *(참고: `scripts/generate-chart.py`를 사용하면 변환 직후 이 패치가 자동으로 수행됩니다. `katenary.ps1`의 변환·패치는 프로젝트 루트에 `compose.yaml`이 없을 때만 동작합니다.)*
 
@@ -476,23 +476,23 @@ kubectl get nodes
      프로젝트에 이미 준비된 `lb-values.yaml` 파일(내용: `backend.serviceType: LoadBalancer`, `backend.servicePort: 80`)을 사용하여 적용합니다:
      ```bash
      # 방법 1. lb-values.yaml 오버라이드를 적용하여 업그레이드 (권장)
-     helm upgrade todo-app charts/getting-started-todo-app-fastapi-claude.local_kind -f lb-values.yaml
+     helm upgrade todo-app charts/getting-started-todo-app-openai-agent.local_kind -f lb-values.yaml
 
      # 방법 2. --set 플래그로 인라인 지정하여 배포/업그레이드
-     helm upgrade todo-app charts/getting-started-todo-app-fastapi-claude.local_kind --set backend.serviceType=LoadBalancer
+     helm upgrade todo-app charts/getting-started-todo-app-openai-agent.local_kind --set backend.serviceType=LoadBalancer
 
      # 방법 3. 이미 배포된 서비스의 타입을 kubectl patch로 즉시 변경
-     kubectl patch svc todo-app-getting-started-todo-app-backend -p '{"spec": {"type": "LoadBalancer"}}'
+     kubectl patch svc todo-app-getting-started-todo-app-openai-agent-backend -p '{"spec": {"type": "LoadBalancer"}}'
      ```
 
    - **3단계: 할당된 `EXTERNAL-IP` 실시간 확인**:
      ```bash
-     kubectl get svc todo-app-getting-started-todo-app-backend -w
+     kubectl get svc todo-app-getting-started-todo-app-openai-agent-backend -w
      ```
      `cloud-provider-kind.exe`가 실행 중이면 몇 초 내에 `<pending>` 상태가 풀리고 IP가 자동 할당됩니다:
      ```text
      NAME                                        TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
-     todo-app-getting-started-todo-app-backend   LoadBalancer   10.96.120.45    172.18.0.5    80:30158/TCP   15s
+     todo-app-getting-started-todo-app-openai-agent-backend   LoadBalancer   10.96.120.45    172.18.0.5    80:30158/TCP   15s
      ```
 
    - **4단계: 웹 브라우저 접속 테스트**:
@@ -512,7 +512,7 @@ kubectl get nodes
 클러스터 내부의 백엔드 서비스를 로컬 PC의 포트로 포워딩합니다:
 
 ```bash
-kubectl port-forward svc/todo-app-getting-started-todo-app-backend 8080:80
+kubectl port-forward svc/todo-app-getting-started-todo-app-openai-agent-backend 8080:80
 ```
 
 - **접속 URL**: **[http://localhost:8080](http://localhost:8080)**  
@@ -530,14 +530,14 @@ kubectl port-forward svc/todo-app-getting-started-todo-app-backend 8080:80
 1. **서비스 타입 확인 (기본값이 LoadBalancer이므로 ClusterIP로 바꾼 경우에만 필요)**:
    ```bash
    # lb-values.yaml 적용 배포 (기본 포트 80 자동 적용)
-   helm upgrade todo-app charts/getting-started-todo-app-fastapi-claude.local_kind -f lb-values.yaml
+   helm upgrade todo-app charts/getting-started-todo-app-openai-agent.local_kind -f lb-values.yaml
 
    # 또는 kubectl patch로 즉시 변경
-   kubectl patch svc todo-app-getting-started-todo-app-backend -p '{"spec": {"type": "LoadBalancer"}}'
+   kubectl patch svc todo-app-getting-started-todo-app-openai-agent-backend -p '{"spec": {"type": "LoadBalancer"}}'
    ```
 2. **할당된 공인/외부 IP(EXTERNAL-IP) 확인**:
    ```bash
-   kubectl get svc todo-app-getting-started-todo-app-backend -w
+   kubectl get svc todo-app-getting-started-todo-app-openai-agent-backend -w
    ```
    *(KIND는 `cloud-provider-kind`가 수 초 내에 할당하며, GKE는 클라우드 로드밸런서 생성까지 1~2분 정도 소요될 수 있습니다.)*
 
@@ -547,7 +547,7 @@ kubectl port-forward svc/todo-app-getting-started-todo-app-backend 8080:80
 
 - **설정 변경 후 차트 업그레이드**:
   ```bash
-  helm upgrade todo-app charts/getting-started-todo-app-fastapi-claude.local_kind
+  helm upgrade todo-app charts/getting-started-todo-app-openai-agent.local_kind
   ```
 
 - **배포 릴리스 삭제 (Uninstall)**:
@@ -563,12 +563,12 @@ kubectl port-forward svc/todo-app-getting-started-todo-app-backend 8080:80
   docker exec -it my-k8s-control-plane crictl images
 
   # 2. 업로드된 로컬 이미지 삭제 (containerd 접두사 docker.io/library/ 포함 또는 Image ID 사용)
-  docker exec -it my-k8s-control-plane crictl rmi docker.io/library/todo-lab-ai:prod
-  docker exec -it my-k8s-worker crictl rmi docker.io/library/todo-lab-ai:prod
-  docker exec -it my-k8s-worker2 crictl rmi docker.io/library/todo-lab-ai:prod
+  docker exec -it my-k8s-control-plane crictl rmi docker.io/library/todo-openai-agent:prod
+  docker exec -it my-k8s-worker crictl rmi docker.io/library/todo-openai-agent:prod
+  docker exec -it my-k8s-worker2 crictl rmi docker.io/library/todo-openai-agent:prod
 
   # 3. (선택) 로컬 호스트의 도커 이미지도 함께 정리할 경우
-  docker rmi todo-lab-ai:prod
+  docker rmi todo-openai-agent:prod
   ```
 
 - **(트러블슈팅) LoadBalancer 서비스 삭제 시 무한 대기할 경우**:
@@ -581,7 +581,7 @@ kubectl port-forward svc/todo-app-getting-started-todo-app-backend 8080:80
 
 ### 7. 원격 GitHub Registry(GHCR) 이미지 사용 시 Chart 생성 및 배포
 
-로컬에서 백엔드 도커 이미지를 직접 빌드(`docker build`)하지 않고, GitHub Container Registry(GHCR) 등에 미리 빌드 및 푸시되어 있는 원격 이미지(`ghcr.io/cstpeace0191/todo-lab-ai:prod`)를 다운로드하여 배포하는 절차 및 실전 트러블슈팅 가이드입니다.
+로컬에서 백엔드 도커 이미지를 직접 빌드(`docker build`)하지 않고, GitHub Container Registry(GHCR) 등에 미리 빌드 및 푸시되어 있는 원격 이미지(`ghcr.io/cstpeace0191/todo-openai-agent:prod`)를 다운로드하여 배포하는 절차 및 실전 트러블슈팅 가이드입니다.
 
 #### 1) Compose 파일 설정 (`compose-prod-GitHub.yml`)
 `backend` 서비스에서 `build:` 섹션을 완전히 제거하고, `image:` 속성에 원격 레지스트리 경로와 태그를 직접 지정합니다:
@@ -600,7 +600,7 @@ services:
 
   backend:
     # 원격 GitHub Container Registry(GHCR) 이미지 지정 (build 블록 제거)
-    image: ghcr.io/cstpeace0191/todo-lab-ai:prod
+    image: ghcr.io/cstpeace0191/todo-openai-agent:prod
     ports:
       - 3000:3000
     expose:
@@ -610,7 +610,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: todos
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -625,7 +625,7 @@ Katenary를 실행하여 Helm Chart를 생성(또는 갱신)합니다:
 
 ```powershell
 # (선택) 기존 차트 폴더 백업
-Copy-Item -Recurse charts/getting-started-todo-app-fastapi-claude.github_kind charts/getting-started-todo-app-fastapi-claude.github_kind.bak
+Copy-Item -Recurse charts/getting-started-todo-app-openai-agent.github_kind charts/getting-started-todo-app-openai-agent.github_kind.bak
 
 # 차트 변환 실행 (기존 차트 덮어쓰기 + 서비스 패치)
 python scripts/generate-chart.py github_kind
@@ -642,18 +642,18 @@ python scripts/generate-chart.py github_kind
 
 차트의 기본 서비스 타입이 **`LoadBalancer`** 로 설정되고 표준 HTTP 포트인 **`80`** 번 포트로 매핑되도록 구성되었습니다:
 
-- **`charts/getting-started-todo-app-fastapi-claude.github_kind/values.yaml`**:
+- **`charts/getting-started-todo-app-openai-agent.github_kind/values.yaml`**:
   ```yaml
   backend:
     serviceType: LoadBalancer   # 기본값 LoadBalancer (클라우드/KIND 로드밸런서 지원)
     servicePort: 80             # 표준 HTTP 포트 (포트 번호 없이 접속 가능)
     repository:
-      image: ghcr.io/cstpeace0191/todo-lab-ai
+      image: ghcr.io/cstpeace0191/getting-started-todo-app-openai-agent
       tag: prod
     replicas: 1
     imagePullPolicy: IfNotPresent
   ```
-- **`charts/getting-started-todo-app-fastapi-claude.github_kind/templates/backend/service.yaml`**:
+- **`charts/getting-started-todo-app-openai-agent.github_kind/templates/backend/service.yaml`**:
   ```yaml
   spec:
     type: {{ .Values.backend.serviceType | default "LoadBalancer" }}
@@ -663,10 +663,10 @@ python scripts/generate-chart.py github_kind
       protocol: TCP
       targetPort: 3000
     selector:
-      {{- include "getting-started-todo-app-fastapi-claude.selectorLabels" . | nindent 4 }}
+      {{- include "getting-started-todo-app-openai-agent.selectorLabels" . | nindent 4 }}
       katenary.v3/component: backend
   ```
-- **`charts/getting-started-todo-app-fastapi-claude.github_kind/templates/backend/deployment.yaml`**:
+- **`charts/getting-started-todo-app-openai-agent.github_kind/templates/backend/deployment.yaml`**:
   ```yaml
   containers:
   - name: backend
@@ -683,19 +683,19 @@ python scripts/generate-chart.py github_kind
 
 ```bash
 # 1. GHCR 차트 Lint 정적 문법 검증 (0 chart(s) failed 확인)
-helm lint charts/getting-started-todo-app-fastapi-claude.github_kind
+helm lint charts/getting-started-todo-app-openai-agent.github_kind
 
 # 2. 설정값(values.yaml) 파일 추출
 # (Bash / Git Bash)
-helm show values charts/getting-started-todo-app-fastapi-claude.github_kind > my-github_kind-values.yaml
+helm show values charts/getting-started-todo-app-openai-agent.github_kind > my-github_kind-values.yaml
 
 # (PowerShell)
-helm show values charts/getting-started-todo-app-fastapi-claude.github_kind | Out-File -Encoding utf8 my-github_kind-values.yaml
+helm show values charts/getting-started-todo-app-openai-agent.github_kind | Out-File -Encoding utf8 my-github_kind-values.yaml
 
 # 3. 추출한 설정값 파일(-f)을 적용하여 배포
-helm install todo-app charts/getting-started-todo-app-fastapi-claude.github_kind -f my-github_kind-values.yaml
+helm install todo-app charts/getting-started-todo-app-openai-agent.github_kind -f my-github_kind-values.yaml
 ```
-*(기존 릴리스가 이미 설치되어 있는 경우: `helm upgrade todo-app charts/getting-started-todo-app-fastapi-claude.github_kind -f my-github_kind-values.yaml`)*
+*(기존 릴리스가 이미 설치되어 있는 경우: `helm upgrade todo-app charts/getting-started-todo-app-openai-agent.github_kind -f my-github_kind-values.yaml`)*
 
 ---
 
@@ -714,7 +714,7 @@ GitHub Packages(GHCR)는 최초 생성 시 기본값이 **Private(비공개)** �
 * **해결 방법 A: GitHub 웹에서 패키지를 "Public(공개)"으로 전환 (가장 간단하고 권장)**
   1. GitHub 웹 브라우저에서 본인의 Packages 탭으로 이동:  
      `https://github.com/cstpeace0191?tab=packages` (또는 해당 저장소 우측의 Packages 메뉴)
-  2. `todo-lab-ai` 패키지 클릭
+  2. `getting-started-todo-app-openai-agent` 패키지 클릭
   3. 오른쪽 하단의 **Package settings** 클릭
   4. 맨 아래 **Danger Zone**의 **Change package visibility** 클릭 → **`Public`** 선택 후 저장
   5. 변경 후 기존 파드를 재시작하면 정상적으로 이미지를 다운로드합니다:
@@ -733,14 +733,14 @@ GitHub Packages(GHCR)는 최초 생성 시 기본값이 **Private(비공개)** �
      ```
   3. Helm 차트에 Secret을 주입하여 업그레이드:
      ```bash
-     helm upgrade todo-app charts/getting-started-todo-app-fastapi-claude.github_kind --set "pullSecrets[0].name=ghcr-secret"
+     helm upgrade todo-app charts/getting-started-todo-app-openai-agent.github_kind --set "pullSecrets[0].name=ghcr-secret"
      ```
 
 * **해결 방법 C: 로컬 빌드 이미지를 태깅하여 KIND 노드로 직접 로드 (오프라인/로컬 테스트)**
-  로컬에 이미 빌드된 `todo-lab-ai:prod` 이미지가 있는 경우, GHCR 태그로 지정한 뒤 KIND 클러스터로 직접 로드하면 `imagePullPolicy: IfNotPresent`에 의해 원격 다운로드 인증 없이 즉시 기동됩니다:
+  로컬에 이미 빌드된 `todo-openai-agent:prod` 이미지가 있는 경우, GHCR 태그로 지정한 뒤 KIND 클러스터로 직접 로드하면 `imagePullPolicy: IfNotPresent`에 의해 원격 다운로드 인증 없이 즉시 기동됩니다:
   ```powershell
-  docker tag todo-lab-ai:prod ghcr.io/cstpeace0191/todo-lab-ai:prod
-  kind load docker-image ghcr.io/cstpeace0191/todo-lab-ai:prod --name my-k8s
+  docker tag todo-openai-agent:prod ghcr.io/cstpeace0191/todo-openai-agent:prod
+  kind load docker-image ghcr.io/cstpeace0191/todo-openai-agent:prod --name my-k8s
   kubectl delete pod -l katenary.v3/component=backend
   ```
 
@@ -758,11 +758,11 @@ GitHub Packages(GHCR)는 최초 생성 시 기본값이 **Private(비공개)** �
 
 ```bash
 # 1. 서비스 상태 및 EXTERNAL-IP 확인
-kubectl get svc todo-app-getting-started-todo-app-backend
+kubectl get svc todo-app-getting-started-todo-app-openai-agent-backend
 ```
 ```text
 NAME                                        TYPE           CLUSTER-IP    EXTERNAL-IP   PORT(S)
-todo-app-getting-started-todo-app-backend   LoadBalancer   10.96.76.26   172.18.0.5    80:31674/TCP
+todo-app-getting-started-todo-app-openai-agent-backend   LoadBalancer   10.96.76.26   172.18.0.5    80:31674/TCP
 ```
 
 - Linux: 포트 번호(`:3000`)를 붙이지 않고 할당된 IP로 접속합니다:  
@@ -771,7 +771,7 @@ todo-app-getting-started-todo-app-backend   LoadBalancer   10.96.76.26   172.18.
 
 ##### 방법 2. 로컬 포트포워딩 접속 (포트 80 매핑)
 ```bash
-kubectl port-forward svc/todo-app-getting-started-todo-app-backend 8080:80
+kubectl port-forward svc/todo-app-getting-started-todo-app-openai-agent-backend 8080:80
 ```
 - 웹 브라우저에서 **[http://localhost:8080](http://localhost:8080)** 로 접속합니다.
 
@@ -779,7 +779,7 @@ kubectl port-forward svc/todo-app-getting-started-todo-app-backend 8080:80
 
 ### 8. 원격 GCP Artifact Registry 이미지 사용 시 Chart 생성 및 배포
 
-Google Cloud Platform(GCP)의 Artifact Registry에 저장된 원격 이미지(`asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-lab-ai:prod`)를 다운로드하여 Helm Chart로 배포하는 절차입니다. (GCP 인증은 아래 3)항 참조)
+Google Cloud Platform(GCP)의 Artifact Registry에 저장된 원격 이미지(`asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-openai-agent:prod`)를 다운로드하여 Helm Chart로 배포하는 절차입니다. (GCP 인증은 아래 3)항 참조)
 
 #### 1) Compose 파일 설정 (`compose-prod-GCPRegistry.yml`)
 `backend` 서비스에서 `build:` 섹션을 생략하고, GCP Artifact Registry의 전체 이미지 경로를 지정합니다:
@@ -802,7 +802,7 @@ services:
 
   backend:
     # GCP Artifact Registry 원격 이미지 지정
-    image: asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-lab-ai:prod
+    image: asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-openai-agent:prod
     ports:
       - 3000:3000
     expose:
@@ -812,7 +812,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: todos
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -825,27 +825,27 @@ services:
   * `asia-northeast3-docker.pkg.dev`: 서울 리전 Docker 호스트 엔드포인트
   * `ssu-agent-vertex-509708`: GCP 프로젝트 ID
   * `suntaechung-repo`: Artifact Registry 표준 Docker 저장소명
-  * `todo-lab-ai`: 이미지 패키지명
+  * `getting-started-todo-app-openai-agent`: 이미지 패키지명
   * `prod`: 이미지 태그
 
 #### 2) Katenary를 통한 Helm Chart 변환
 
 ```powershell
 # (선택) 이전 차트 백업
-Copy-Item -Recurse charts/getting-started-todo-app-fastapi-claude.gcp_gke charts/getting-started-todo-app-fastapi-claude.gcp_gke.bak
+Copy-Item -Recurse charts/getting-started-todo-app-openai-agent.gcp_gke charts/getting-started-todo-app-openai-agent.gcp_gke.bak
 
 # 차트 변환 실행 (기존 차트 덮어쓰기 + 서비스 패치)
 python scripts/generate-chart.py gcp_gke
 ```
 
-* **생성된 `charts/getting-started-todo-app-fastapi-claude.gcp_gke/values.yaml` 및 `service.yaml` 확인**:
+* **생성된 `charts/getting-started-todo-app-openai-agent.gcp_gke/values.yaml` 및 `service.yaml` 확인**:
   ```yaml
   backend:
     serviceType: LoadBalancer   # 기본값 LoadBalancer (GCP 클라우드 로드밸런서 및 KIND 로드밸런서 지원)
     servicePort: 80             # 표준 HTTP 포트 (포트 번호 없이 접속 가능)
     repository:
       # GCP 저장소 경로가 자동으로 매핑됨
-      image: asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-lab-ai
+      image: asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/getting-started-todo-app-openai-agent
       # 태그 분리
       tag: prod
     replicas: 1
@@ -919,24 +919,24 @@ GCP Artifact Registry의 IAM 권한에서 **`allUsers`** 에게 **`Artifact Regi
 
 ```bash
 # 0. GKE 차트 Lint 정적 문법 검증 (0 chart(s) failed 확인)
-helm lint charts/getting-started-todo-app-fastapi-claude.gcp_gke
+helm lint charts/getting-started-todo-app-openai-agent.gcp_gke
 
 # 1. 설정값(values.yaml) 파일 추출
 # (Bash / Git Bash)
-helm show values charts/getting-started-todo-app-fastapi-claude.gcp_gke > my-gcp_gke-values.yaml
+helm show values charts/getting-started-todo-app-openai-agent.gcp_gke > my-gcp_gke-values.yaml
 
 # (PowerShell)
-helm show values charts/getting-started-todo-app-fastapi-claude.gcp_gke | Out-File -Encoding utf8 my-gcp_gke-values.yaml
+helm show values charts/getting-started-todo-app-openai-agent.gcp_gke | Out-File -Encoding utf8 my-gcp_gke-values.yaml
 
 # 2. 추출한 설정값 파일(-f)을 적용하여 설치 (Install)
 # 2-A. Public 저장소이거나 KIND 노드에 이미지가 로드된 경우 (Secret 불필요):
-helm install todo-app charts/getting-started-todo-app-fastapi-claude.gcp_gke -f my-gcp_gke-values.yaml
+helm install todo-app charts/getting-started-todo-app-openai-agent.gcp_gke -f my-gcp_gke-values.yaml
 
 # 2-B. Private 저장소인 경우 (Secret 함께 주입):
-helm install todo-app charts/getting-started-todo-app-fastapi-claude.gcp_gke -f my-gcp_gke-values.yaml --set "pullSecrets[0].name=gcp-ar-secret"
+helm install todo-app charts/getting-started-todo-app-openai-agent.gcp_gke -f my-gcp_gke-values.yaml --set "pullSecrets[0].name=gcp-ar-secret"
 ```
 
-*(기존 릴리스가 이미 설치되어 있는 경우: `helm upgrade todo-app charts/getting-started-todo-app-fastapi-claude.gcp_gke -f my-gcp_gke-values.yaml`)*
+*(기존 릴리스가 이미 설치되어 있는 경우: `helm upgrade todo-app charts/getting-started-todo-app-openai-agent.gcp_gke -f my-gcp_gke-values.yaml`)*
 
 ---
 
@@ -946,13 +946,13 @@ helm install todo-app charts/getting-started-todo-app-fastapi-claude.gcp_gke -f 
 
 ```bash
 # 외부 IP(EXTERNAL-IP) 할당 상태 확인
-kubectl get svc todo-app-getting-started-todo-app-backend -w
+kubectl get svc todo-app-getting-started-todo-app-openai-agent-backend -w
 ```
 
 * **출력 예시**:
   ```text
   NAME                                        TYPE           CLUSTER-IP      EXTERNAL-IP     PORT(S)        AGE
-  todo-app-getting-started-todo-app-backend   LoadBalancer   10.96.19.197    34.64.xxx.xxx   80:31635/TCP   1m
+  todo-app-getting-started-todo-app-openai-agent-backend   LoadBalancer   10.96.19.197    34.64.xxx.xxx   80:31635/TCP   1m
   ```
 
 * **접속 방법**:
@@ -964,7 +964,7 @@ kubectl get svc todo-app-getting-started-todo-app-backend -w
     - Linux 접속: **`http://<EXTERNAL-IP>`** (예: `http://172.18.0.5`)
     - Windows · macOS 접속: **`http://localhost:<매핑된 포트>`** (`docker ps --filter "name=kindccm"`로 확인)
   * **(대안) 포트포워딩 접속 (테스트용)**:
-    - `kubectl port-forward svc/todo-app-getting-started-todo-app-backend 8080:80` 실행 후 **[http://localhost:8080](http://localhost:8080)** 접속
+    - `kubectl port-forward svc/todo-app-getting-started-todo-app-openai-agent-backend 8080:80` 실행 후 **[http://localhost:8080](http://localhost:8080)** 접속
 
 > [!CAUTION]
 > **GCP GKE 리소스 정리 안내**:  

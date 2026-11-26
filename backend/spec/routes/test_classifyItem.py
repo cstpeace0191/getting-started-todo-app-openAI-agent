@@ -79,3 +79,25 @@ async def test_ai_status_endpoint():
             response = await ac.get("/api/ai/status")
 
     assert response.json() == {"enabled": True}
+
+
+async def test_briefing_endpoint_returns_briefing():
+    from src.models import Briefing
+    b = Briefing(summary="요약", focus=[], warnings=[], tips=[])
+    with patch("src.ai.is_enabled", return_value=True), \
+            patch("src.ai.make_briefing", new_callable=AsyncMock, return_value=b):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            response = await ac.post("/api/ai/briefing", json={"today": "2026-11-25"})
+    assert response.status_code == 200
+    assert response.json()["summary"] == "요약"
+
+
+async def test_briefing_endpoint_503_when_disabled_and_502_on_failure():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        with patch("src.ai.is_enabled", return_value=False):
+            assert (await ac.post("/api/ai/briefing", json={})).status_code == 503
+        with patch("src.ai.is_enabled", return_value=True), \
+                patch("src.ai.make_briefing", new_callable=AsyncMock, return_value=None):
+            assert (await ac.post("/api/ai/briefing", json={})).status_code == 502

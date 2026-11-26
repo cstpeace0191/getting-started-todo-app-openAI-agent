@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: todo-backend-np
   labels:
-    app.kubernetes.io/name: getting-started-todo-app-fastapi-claude
+    app.kubernetes.io/name: getting-started-todo-app-openai-agent
     app.kubernetes.io/component: backend
 spec:
   type: NodePort

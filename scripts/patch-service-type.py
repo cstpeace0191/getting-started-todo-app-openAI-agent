@@ -5,7 +5,7 @@ Aligns chart resources with kind-deployment-Local.yaml, kind-deployment-GitHub.y
 and GKE-deployment-GCP.yaml:
   - Backend Service: LoadBalancer default, port 80 (HTTP) -> 3000
   - Backend ConfigMap: POSTGRES_PORT ("5432"), PORT ("3000")
-  - Backend Deployment: Readiness/Liveness probes on /api/items, optional ANTHROPIC_API_KEY
+  - Backend Deployment: Readiness/Liveness probes on /api/items, optional OPENAI_API_KEY
   - Postgres Service: port 5432
   - Postgres ConfigMap / Deployment: PGDATA (/var/lib/postgresql/data/pgdata), pg_isready probes
   - Values: Environment-specific images, imagePullPolicy, StorageClass, and PVC sizes.
@@ -16,7 +16,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 
 CHART = Path(sys.argv[1] if len(sys.argv) > 1 else
-             "charts/getting-started-todo-app-fastapi-claude.local_kind")
+             "charts/getting-started-todo-app-openai-agent.local_kind")
 
 SERVICE = CHART / "templates" / "backend" / "service.yaml"
 BACKEND_CM = CHART / "templates" / "backend" / "configmap.yaml"
@@ -96,14 +96,14 @@ def patch_backend_deployment() -> None:
                 text = text.replace(port_target, port_target + probes, 1)
                 break
 
-    # Add optional ANTHROPIC_API_KEY if missing
-    if "ANTHROPIC_API_KEY" not in text:
+    # Add optional OPENAI_API_KEY if missing
+    if "OPENAI_API_KEY" not in text:
         ai_env = """        env:
-        - name: ANTHROPIC_API_KEY
+        - name: OPENAI_API_KEY
           valueFrom:
             secretKeyRef:
               name: todo-ai-secret
-              key: ANTHROPIC_API_KEY
+              key: OPENAI_API_KEY
               optional: true
 """
         if "envFrom:\n" in text:

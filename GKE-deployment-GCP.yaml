@@ -3,7 +3,7 @@ kind: Secret
 metadata:
   name: todo-db-secret
   labels:
-    app.kubernetes.io/name: getting-started-todo-app-fastapi-claude
+    app.kubernetes.io/name: getting-started-todo-app-openai-agent
     app.kubernetes.io/part-of: todo-app
 type: Opaque
 stringData:
@@ -14,7 +14,7 @@ kind: ConfigMap
 metadata:
   name: todo-config
   labels:
-    app.kubernetes.io/name: getting-started-todo-app-fastapi-claude
+    app.kubernetes.io/name: getting-started-todo-app-openai-agent
     app.kubernetes.io/part-of: todo-app
 data:
   POSTGRES_HOST: "postgres"        # 아래 postgres Service 이름
@@ -28,7 +28,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: todo-postgres-pvc
   labels:
-    app.kubernetes.io/name: getting-started-todo-app-fastapi-claude
+    app.kubernetes.io/name: getting-started-todo-app-openai-agent
     app.kubernetes.io/component: database
 spec:
   accessModes:
@@ -44,7 +44,7 @@ metadata:
   name: postgres
   labels:
     app: postgres
-    app.kubernetes.io/name: getting-started-todo-app-fastapi-claude
+    app.kubernetes.io/name: getting-started-todo-app-openai-agent
     app.kubernetes.io/component: database
 spec:
   restartPolicy: Always
@@ -100,7 +100,7 @@ kind: Service
 metadata:
   name: postgres
   labels:
-    app.kubernetes.io/name: getting-started-todo-app-fastapi-claude
+    app.kubernetes.io/name: getting-started-todo-app-openai-agent
     app.kubernetes.io/component: database
 spec:
   type: ClusterIP
@@ -116,7 +116,7 @@ kind: Deployment
 metadata:
   name: todo-backend
   labels:
-    app.kubernetes.io/name: getting-started-todo-app-fastapi-claude
+    app.kubernetes.io/name: getting-started-todo-app-openai-agent
     app.kubernetes.io/component: backend
 spec:
   replicas: 2
@@ -132,7 +132,7 @@ spec:
     metadata:
       labels:
         app: todo-backend
-        app.kubernetes.io/name: getting-started-todo-app-fastapi-claude
+        app.kubernetes.io/name: getting-started-todo-app-openai-agent
         app.kubernetes.io/component: backend
     spec:
       initContainers:
@@ -151,7 +151,7 @@ spec:
               echo "PostgreSQL is available!"
       containers:
         - name: backend
-          image: asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-lab-ai:prod
+          image: asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-openai-agent:prod
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
@@ -162,13 +162,13 @@ spec:
             - secretRef:
                 name: todo-db-secret
           env:
-            # (선택) AI 분류용 키. 없으면 AI 분류 없이 일반 Todo 앱으로 동작합니다.
-            # kubectl create secret generic todo-ai-secret --from-literal=ANTHROPIC_API_KEY=sk-ant-...
-            - name: ANTHROPIC_API_KEY
+            # (선택) AI(OpenAI Agents SDK)용 키. 없으면 AI 분류 없이 일반 Todo 앱으로 동작합니다.
+            # kubectl create secret generic todo-ai-secret --from-literal=OPENAI_API_KEY=<OpenAI API key>
+            - name: OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: todo-ai-secret
-                  key: ANTHROPIC_API_KEY
+                  key: OPENAI_API_KEY
                   optional: true
           resources:
             requests:

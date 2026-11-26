@@ -8,11 +8,11 @@ BACKEND_DEPLOYMENT = """apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    {{- include "getting-started-todo-app-fastapi-claude.labels" . | nindent 4 }}
-    app.kubernetes.io/name: getting-started-todo-app-fastapi-claude
+    {{- include "getting-started-todo-app-openai-agent.labels" . | nindent 4 }}
+    app.kubernetes.io/name: getting-started-todo-app-openai-agent
     app.kubernetes.io/component: backend
     katenary.v3/component: backend
-  name: '{{ include "getting-started-todo-app-fastapi-claude.fullname" . }}-backend'
+  name: '{{ include "getting-started-todo-app-openai-agent.fullname" . }}-backend'
 spec:
   replicas: {{ .Values.backend.replicas | default 2 }}
   strategy:
@@ -22,14 +22,14 @@ spec:
       maxUnavailable: 0
   selector:
     matchLabels:
-      {{- include "getting-started-todo-app-fastapi-claude.selectorLabels" . | nindent 6 }}
+      {{- include "getting-started-todo-app-openai-agent.selectorLabels" . | nindent 6 }}
       katenary.v3/component: backend
   template:
     metadata:
       labels:
-        {{- include "getting-started-todo-app-fastapi-claude.selectorLabels" . | nindent 8 }}
+        {{- include "getting-started-todo-app-openai-agent.selectorLabels" . | nindent 8 }}
         app: todo-backend
-        app.kubernetes.io/name: getting-started-todo-app-fastapi-claude
+        app.kubernetes.io/name: getting-started-todo-app-openai-agent
         app.kubernetes.io/component: backend
         katenary.v3/component: backend
     spec:
@@ -41,8 +41,8 @@ spec:
         - sh
         - -c
         - |-
-          echo "Waiting for PostgreSQL service at {{ include "getting-started-todo-app-fastapi-claude.fullname" . }}-postgres:5432..."
-          until nc -z -v -w3 {{ include "getting-started-todo-app-fastapi-claude.fullname" . }}-postgres 5432; do
+          echo "Waiting for PostgreSQL service at {{ include "getting-started-todo-app-openai-agent.fullname" . }}-postgres:5432..."
+          until nc -z -v -w3 {{ include "getting-started-todo-app-openai-agent.fullname" . }}-postgres 5432; do
             echo "PostgreSQL is not ready yet, sleeping 2s..."
             sleep 2
           done
@@ -56,13 +56,13 @@ spec:
           name: http
         envFrom:
         - configMapRef:
-            name: '{{ include "getting-started-todo-app-fastapi-claude.fullname" . }}-backend'
+            name: '{{ include "getting-started-todo-app-openai-agent.fullname" . }}-backend'
         env:
-        - name: ANTHROPIC_API_KEY
+        - name: OPENAI_API_KEY
           valueFrom:
             secretKeyRef:
               name: todo-ai-secret
-              key: ANTHROPIC_API_KEY
+              key: OPENAI_API_KEY
               optional: true
         resources:
           {{- if .Values.backend.resources }}
@@ -104,13 +104,13 @@ BACKEND_CONFIGMAP = """apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:
-    {{- include "getting-started-todo-app-fastapi-claude.labels" . | nindent 4 }}
-    app.kubernetes.io/name: getting-started-todo-app-fastapi-claude
+    {{- include "getting-started-todo-app-openai-agent.labels" . | nindent 4 }}
+    app.kubernetes.io/name: getting-started-todo-app-openai-agent
     app.kubernetes.io/component: backend
     katenary.v3/component: backend
-  name: '{{ include "getting-started-todo-app-fastapi-claude.fullname" . }}-backend'
+  name: '{{ include "getting-started-todo-app-openai-agent.fullname" . }}-backend'
 data:
-  POSTGRES_HOST: '{{ include "getting-started-todo-app-fastapi-claude.fullname" . }}-postgres'
+  POSTGRES_HOST: '{{ include "getting-started-todo-app-openai-agent.fullname" . }}-postgres'
   POSTGRES_USER: "postgres"
   POSTGRES_DB: "todos"
   POSTGRES_PASSWORD: "secret"
@@ -122,11 +122,11 @@ BACKEND_SERVICE = """apiVersion: v1
 kind: Service
 metadata:
   labels:
-    {{- include "getting-started-todo-app-fastapi-claude.labels" . | nindent 4 }}
-    app.kubernetes.io/name: getting-started-todo-app-fastapi-claude
+    {{- include "getting-started-todo-app-openai-agent.labels" . | nindent 4 }}
+    app.kubernetes.io/name: getting-started-todo-app-openai-agent
     app.kubernetes.io/component: backend
     katenary.v3/component: backend
-  name: '{{ include "getting-started-todo-app-fastapi-claude.fullname" . }}-backend'
+  name: '{{ include "getting-started-todo-app-openai-agent.fullname" . }}-backend'
 spec:
   type: {{ .Values.backend.serviceType | default "LoadBalancer" }}
   ports:
@@ -135,7 +135,7 @@ spec:
     protocol: TCP
     targetPort: 3000
   selector:
-    {{- include "getting-started-todo-app-fastapi-claude.selectorLabels" . | nindent 4 }}
+    {{- include "getting-started-todo-app-openai-agent.selectorLabels" . | nindent 4 }}
     katenary.v3/component: backend
 """
 
@@ -143,25 +143,25 @@ POSTGRES_DEPLOYMENT = """apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    {{- include "getting-started-todo-app-fastapi-claude.labels" . | nindent 4 }}
-    app.kubernetes.io/name: getting-started-todo-app-fastapi-claude
+    {{- include "getting-started-todo-app-openai-agent.labels" . | nindent 4 }}
+    app.kubernetes.io/name: getting-started-todo-app-openai-agent
     app.kubernetes.io/component: database
     katenary.v3/component: postgres
-  name: '{{ include "getting-started-todo-app-fastapi-claude.fullname" . }}-postgres'
+  name: '{{ include "getting-started-todo-app-openai-agent.fullname" . }}-postgres'
 spec:
   replicas: {{ .Values.postgres.replicas | default 1 }}
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      {{- include "getting-started-todo-app-fastapi-claude.selectorLabels" . | nindent 6 }}
+      {{- include "getting-started-todo-app-openai-agent.selectorLabels" . | nindent 6 }}
       katenary.v3/component: postgres
   template:
     metadata:
       labels:
-        {{- include "getting-started-todo-app-fastapi-claude.selectorLabels" . | nindent 8 }}
+        {{- include "getting-started-todo-app-openai-agent.selectorLabels" . | nindent 8 }}
         app: postgres
-        app.kubernetes.io/name: getting-started-todo-app-fastapi-claude
+        app.kubernetes.io/name: getting-started-todo-app-openai-agent
         app.kubernetes.io/component: database
         katenary.v3/component: postgres
     spec:
@@ -174,7 +174,7 @@ spec:
           name: postgres
         envFrom:
         - configMapRef:
-            name: '{{ include "getting-started-todo-app-fastapi-claude.fullname" . }}-postgres'
+            name: '{{ include "getting-started-todo-app-openai-agent.fullname" . }}-postgres'
         env:
         - name: PGDATA
           value: /var/lib/postgresql/data/pgdata
@@ -231,7 +231,7 @@ spec:
       {{- if .Values.postgres.persistence.todo_postgres_data.enabled }}
       - name: todo-postgres-data
         persistentVolumeClaim:
-          claimName: '{{ include "getting-started-todo-app-fastapi-claude.fullname" . }}-postgres-todo-postgres-data'
+          claimName: '{{ include "getting-started-todo-app-openai-agent.fullname" . }}-postgres-todo-postgres-data'
       {{- end }}
 """
 
@@ -239,11 +239,11 @@ POSTGRES_CONFIGMAP = """apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:
-    {{- include "getting-started-todo-app-fastapi-claude.labels" . | nindent 4 }}
-    app.kubernetes.io/name: getting-started-todo-app-fastapi-claude
+    {{- include "getting-started-todo-app-openai-agent.labels" . | nindent 4 }}
+    app.kubernetes.io/name: getting-started-todo-app-openai-agent
     app.kubernetes.io/component: database
     katenary.v3/component: postgres
-  name: '{{ include "getting-started-todo-app-fastapi-claude.fullname" . }}-postgres'
+  name: '{{ include "getting-started-todo-app-openai-agent.fullname" . }}-postgres'
 data:
   POSTGRES_DB: todos
   POSTGRES_PASSWORD: "secret"
@@ -254,11 +254,11 @@ POSTGRES_SERVICE = """apiVersion: v1
 kind: Service
 metadata:
   labels:
-    {{- include "getting-started-todo-app-fastapi-claude.labels" . | nindent 4 }}
-    app.kubernetes.io/name: getting-started-todo-app-fastapi-claude
+    {{- include "getting-started-todo-app-openai-agent.labels" . | nindent 4 }}
+    app.kubernetes.io/name: getting-started-todo-app-openai-agent
     app.kubernetes.io/component: database
     katenary.v3/component: postgres
-  name: '{{ include "getting-started-todo-app-fastapi-claude.fullname" . }}-postgres'
+  name: '{{ include "getting-started-todo-app-openai-agent.fullname" . }}-postgres'
 spec:
   type: ClusterIP
   ports:
@@ -267,7 +267,7 @@ spec:
     protocol: TCP
     targetPort: 5432
   selector:
-    {{- include "getting-started-todo-app-fastapi-claude.selectorLabels" . | nindent 4 }}
+    {{- include "getting-started-todo-app-openai-agent.selectorLabels" . | nindent 4 }}
     katenary.v3/component: postgres
 """
 
@@ -276,11 +276,11 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   labels:
-    {{- include "getting-started-todo-app-fastapi-claude.labels" . | nindent 4 }}
-    app.kubernetes.io/name: getting-started-todo-app-fastapi-claude
+    {{- include "getting-started-todo-app-openai-agent.labels" . | nindent 4 }}
+    app.kubernetes.io/name: getting-started-todo-app-openai-agent
     app.kubernetes.io/component: database
     katenary.v3/component: postgres
-  name: '{{ include "getting-started-todo-app-fastapi-claude.fullname" . }}-postgres-todo-postgres-data'
+  name: '{{ include "getting-started-todo-app-openai-agent.fullname" . }}-postgres-todo-postgres-data'
 spec:
   accessModes:
   {{- .Values.postgres.persistence.todo_postgres_data.accessMode | toYaml | nindent 2 }}
@@ -294,22 +294,22 @@ spec:
 """
 
 CONFIGS = {
-    "getting-started-todo-app-fastapi-claude.local_kind": {
-        "backend_image": "todo-lab-ai",
+    "getting-started-todo-app-openai-agent.local_kind": {
+        "backend_image": "getting-started-todo-app-openai-agent",
         "backend_tag": "prod",
         "backend_pull_policy": "IfNotPresent",
         "storage_class": "standard",
         "storage_size": "1Gi",
     },
-    "getting-started-todo-app-fastapi-claude.github_kind": {
-        "backend_image": "ghcr.io/cstpeace0191/todo-lab-ai",
+    "getting-started-todo-app-openai-agent.github_kind": {
+        "backend_image": "ghcr.io/cstpeace0191/getting-started-todo-app-openai-agent",
         "backend_tag": "prod",
         "backend_pull_policy": "Always",
         "storage_class": "standard",
         "storage_size": "1Gi",
     },
-    "getting-started-todo-app-fastapi-claude.gcp_gke": {
-        "backend_image": "asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-lab-ai",
+    "getting-started-todo-app-openai-agent.gcp_gke": {
+        "backend_image": "asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/getting-started-todo-app-openai-agent",
         "backend_tag": "prod",
         "backend_pull_policy": "Always",
         "storage_class": "standard-rwo",
@@ -394,9 +394,9 @@ def sync():
         print(f"[ok] Synced {chart_name}")
 
     # Also update root my-*.yaml files
-    (ROOT / "my-local_kind-values.yaml").write_text(make_values_yaml(CONFIGS["getting-started-todo-app-fastapi-claude.local_kind"]), encoding="utf-8")
-    (ROOT / "my-github_kind-values.yaml").write_text(make_values_yaml(CONFIGS["getting-started-todo-app-fastapi-claude.github_kind"]), encoding="utf-8")
-    (ROOT / "my-gcp_gke-values.yaml").write_text(make_values_yaml(CONFIGS["getting-started-todo-app-fastapi-claude.gcp_gke"]), encoding="utf-8")
+    (ROOT / "my-local_kind-values.yaml").write_text(make_values_yaml(CONFIGS["getting-started-todo-app-openai-agent.local_kind"]), encoding="utf-8")
+    (ROOT / "my-github_kind-values.yaml").write_text(make_values_yaml(CONFIGS["getting-started-todo-app-openai-agent.github_kind"]), encoding="utf-8")
+    (ROOT / "my-gcp_gke-values.yaml").write_text(make_values_yaml(CONFIGS["getting-started-todo-app-openai-agent.gcp_gke"]), encoding="utf-8")
     print("[ok] Synced root my-*.yaml files")
 
 if __name__ == "__main__":

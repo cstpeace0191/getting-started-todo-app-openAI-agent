@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Universal Helm chart generator for getting-started-todo-app-fastapi-claude.
+"""Universal Helm chart generator for getting-started-todo-app-openai-agent.
 
 Supports generating charts for:
-  - local_kind   (compose-prod-build.yml -> charts/getting-started-todo-app-fastapi-claude.local_kind)
-  - github_kind  (compose-prod-GitHub.yml -> charts/getting-started-todo-app-fastapi-claude.github_kind)
-  - gcp_gke      (compose-prod-GCPRegistry.yml -> charts/getting-started-todo-app-fastapi-claude.gcp_gke)
+  - local_kind   (compose-prod-build.yml -> charts/getting-started-todo-app-openai-agent.local_kind)
+  - github_kind  (compose-prod-GitHub.yml -> charts/getting-started-todo-app-openai-agent.github_kind)
+  - gcp_gke      (compose-prod-GCPRegistry.yml -> charts/getting-started-todo-app-openai-agent.gcp_gke)
   - all          (generates all 3 charts above)
 
 Usage:
@@ -19,21 +19,21 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 KATENARY = REPO / "katenary.exe"
-PROJECT_DIR_NAME = "getting-started-todo-app-fastapi-claude"
-DEFAULT_ICON = "https://raw.githubusercontent.com/cstpeace0191/getting-started-todo-app-fastapi-claude/main/client/public/favicon.ico"
+PROJECT_DIR_NAME = "getting-started-todo-app-openai-agent"
+DEFAULT_ICON = "https://raw.githubusercontent.com/cstpeace0191/getting-started-todo-app-openAI-agent/main/client/public/favicon.ico"
 
 ENV_CONFIGS = {
     "local_kind": {
         "compose": REPO / "compose-prod-build.yml" if (REPO / "compose-prod-build.yml").is_file() else REPO / "compose-local_kind.yaml",
-        "chart": REPO / "charts" / "getting-started-todo-app-fastapi-claude.local_kind",
+        "chart": REPO / "charts" / "getting-started-todo-app-openai-agent.local_kind",
     },
     "github_kind": {
         "compose": REPO / "compose-prod-GitHub.yml" if (REPO / "compose-prod-GitHub.yml").is_file() else REPO / "compose-github_kind.yaml",
-        "chart": REPO / "charts" / "getting-started-todo-app-fastapi-claude.github_kind",
+        "chart": REPO / "charts" / "getting-started-todo-app-openai-agent.github_kind",
     },
     "gcp_gke": {
         "compose": REPO / "compose-prod-GCPRegistry.yml" if (REPO / "compose-prod-GCPRegistry.yml").is_file() else REPO / "compose-gcp_gke.yaml",
-        "chart": REPO / "charts" / "getting-started-todo-app-fastapi-claude.gcp_gke",
+        "chart": REPO / "charts" / "getting-started-todo-app-openai-agent.gcp_gke",
     },
 }
 

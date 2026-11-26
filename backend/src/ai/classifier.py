@@ -1,25 +1,15 @@
-"""할 일 자동 분류기 (Claude API, 짧은 단일 호출)
+"""할 일 자동 분류기 (OpenAI Agents SDK, 도구 없는 단일 턴 Agent)
 
-할 일 이름 하나를 받아 카테고리(학업/업무/개인)와 우선순위(높음/보통/낮음)를
-Structured Outputs 로 받아온다. 응답은 Pydantic 모델(Classification)로 검증된다.
+할 일 이름 하나를 받아 카테고리(학업/업무/개인)와 우선순위(높음/보통/낮음), 일정을
+구조화 출력(Agent 의 output_type)으로 받아온다. 응답은 Pydantic 모델(Classification)로 검증된다.
 
-API 키 설정 (둘 중 하나):
-  - ANTHROPIC_API_KEY       : 키 문자열
-  - ANTHROPIC_API_KEY_FILE  : 키가 들어 있는 파일 경로 (Docker/K8s Secret 마운트용)
-키가 없거나 AI_CLASSIFY_ENABLED=false 이면 분류를 건너뛰고 None 을 돌려준다.
-분류가 실패해도 할 일 저장(CRUD)은 항상 정상 동작해야 하므로, 이 모듈은
-예외를 밖으로 던지지 않는다.
+실행·모델·키 설정은 agent.py 를 참고한다. 키가 없거나 AI 가 꺼져 있으면 None 을 돌려주고,
+분류가 실패해도 할 일 저장(CRUD)은 정상 동작해야 하므로 예외를 밖으로 던지지 않는다.
 """
-import logging
-import os
-
-import anthropic
-
 from ..models import Classification, valid_date, valid_time
+from .agent import build_agent, is_enabled, run_structured
 
-logger = logging.getLogger(__name__)
-
-MODEL = "claude-opus-5-5"
+__all__ = ["classify_item", "is_enabled"]
 
 SYSTEM_PROMPT = """\
 너는 할 일(To-Do) 목록 앱의 분류기다. 사용자가 입력한 할 일 하나를 보고
@@ -49,34 +39,6 @@ SYSTEM_PROMPT = """\
 medium 을 고른다.
 """
 
-_client: anthropic.AsyncAnthropic | None = None
-
-
-def _read_api_key() -> str | None:
-    file_path = os.getenv("ANTHROPIC_API_KEY_FILE")
-    if file_path and os.path.exists(file_path):
-        with open(file_path, "r", encoding="utf-8") as f:
-            key = f.read().strip()
-            if key:
-                return key
-    return os.getenv("ANTHROPIC_API_KEY") or None
-
-
-def is_enabled() -> bool:
-    if os.getenv("AI_CLASSIFY_ENABLED", "true").lower() in ("false", "0", "no"):
-        return False
-    return _read_api_key() is not None
-
-
-def _get_client() -> anthropic.AsyncAnthropic:
-    global _client
-    if _client is None:
-        # 할 일 추가 요청이 너무 오래 걸리지 않도록 타임아웃을 짧게, 재시도는 1회만
-        _client = anthropic.AsyncAnthropic(
-            api_key=_read_api_key(), timeout=20.0, max_retries=1
-        )
-    return _client
-
 
 async def classify_item(
     name: str, today: str | None = None
@@ -93,41 +55,12 @@ async def classify_item(
     if today:
         content = f"오늘 날짜: {today}\n{content}"
 
-    try:
-        response = await _get_client().beta.messages.parse(
-            model=MODEL,
-            max_tokens=2048,
-            # 분류는 단순한 작업이므로 effort 를 낮춰 비용·지연을 줄인다
-            output_config={"effort": "low"},
-            # 안전 분류기가 요청을 거절하면 서버가 다른 모델로 자동 재시도
-            betas=["server-side-fallback-2026-07-01"],
-            fallbacks="default",
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": content}],
-            output_format=Classification,
-        )
-    except anthropic.AuthenticationError:
-        logger.warning("Claude API 인증 실패: ANTHROPIC_API_KEY 를 확인하세요.")
+    agent = build_agent(
+        name="todo_classifier", instruction=SYSTEM_PROMPT, schema=Classification
+    )
+    if agent is None:
         return None
-    except anthropic.RateLimitError:
-        logger.warning("Claude API 요청 한도 초과로 분류를 건너뜁니다.")
-        return None
-    except anthropic.APIStatusError as e:
-        logger.warning("Claude API 오류(%s)로 분류를 건너뜁니다: %s", e.status_code, e.message)
-        return None
-    except anthropic.APIConnectionError as e:
-        logger.warning("Claude API 연결 실패로 분류를 건너뜁니다: %s", e)
-        return None
-    except anthropic.AnthropicError as e:
-        # 응답이 스키마에 맞지 않는 등 SDK 수준의 기타 오류
-        logger.warning("분류 결과 처리 실패: %s", e)
-        return None
-
-    if response.stop_reason in ("refusal", "max_tokens"):
-        logger.warning("분류 응답이 완료되지 않았습니다 (stop_reason=%s)", response.stop_reason)
-        return None
-
-    result = response.parsed_output
+    result = await run_structured(agent, content, Classification)
     if result is None:
         return None
     # AI 가 만든 날짜·시간은 형식이 틀릴 수 있으므로 검증하고, 날짜가 없으면 시간도 버린다

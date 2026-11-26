@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: todo-backend-lb
   labels:
-    app.kubernetes.io/name: getting-started-todo-app-fastapi-claude
+    app.kubernetes.io/name: getting-started-todo-app-openai-agent
     app.kubernetes.io/component: backend
   # [GKE 전용 참고]
   # - 기본 설정 시 GCP 외부 네트워크 부하 분산기(External Passthrough Network Load Balancer)가 자동 생성됩니다.
